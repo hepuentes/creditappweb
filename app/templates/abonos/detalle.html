@@ -1,0 +1,285 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Abono #{{ abono.id }} - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Detalle de Abono #{{ abono.id }}</h1>
+        <div>
+            <a href="{{ url_for('abonos.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información del Abono</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Fecha:</strong> {{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                            <p><strong>Cliente:</strong>
+                                <a href="{{ url_for('clientes.detalle', id=abono.venta.cliente_id) }}">
+                                    {{ abono.venta.cliente.nombre }}
+                                </a>
+                            </p>
+                            <p><strong>Cédula:</strong> {{ abono.venta.cliente.cedula }}</p>
+                            <p><strong>Cobrador:</strong> {{ abono.cobrador.nombre }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Factura:</strong>
+                                <a href="{{ url_for('ventas.detalle', id=abono.venta_id) }}">
+                                    #{{ abono.venta_id }}
+                                </a>
+                            </p>
+                            <p><strong>Monto Abonado:</strong> <span class="fw-bold text-success">{{
+                                    "${:,}".format(abono.monto) }}</span></p>
+                            <p><strong>Saldo Restante (Factura):</strong> <span
+                                    class="fw-bold {% if abono.venta.saldo_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ "${:,}".format(abono.venta.saldo_pendiente) }}
+                                </span></p>
+                        </div>
+                    </div>
+
+                    {% if abono.notas %}
+                    <div class="mt-3">
+                        <p><strong>Notas:</strong></p>
+                        <div class="p-3 bg-light rounded">{{ abono.notas }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información de la Factura Asociada</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Fecha de Venta:</strong> {{ abono.venta.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                    <p><strong>Tipo:</strong>
+                        <span class="badge bg-warning text-dark">Crédito</span>
+                    </p>
+                    <p><strong>Estado:</strong>
+                        {% if abono.venta.estado == 'pagado' %}
+                        <span class="badge bg-success">Pagado</span>
+                        {% else %}
+                        <span class="badge bg-danger">Pendiente</span>
+                        {% endif %}
+                    </p>
+                    <p><strong>Total Factura:</strong> {{ "${:,}".format(abono.venta.total) }}</p>
+                    <p><strong>Total Abonado (Factura):</strong> {{ "${:,}".format(abono.venta.total -
+                        abono.venta.saldo_pendiente) }}</p>
+                    <p><strong>Saldo Pendiente (Factura):</strong> <span
+                            class="fw-bold {% if abono.venta.saldo_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
+                            {{ "${:,}".format(abono.venta.saldo_pendiente) }}
+                        </span></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Acciones</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('abonos.pdf', id=abono.id) }}" target="_blank"
+                                class="btn btn-primary w-100">
+                                <i class="fas fa-file-pdf"></i> Ver PDF Abono
+                            </a>
+                        </div>
+                        {% if abono.venta.saldo_pendiente > 0 %}
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('abonos.crear', venta_id=abono.venta_id) }}"
+                                class="btn btn-success w-100">
+                                <i class="fas fa-money-bill-wave"></i> Nuevo Abono a esta Venta
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Botones de administrador -->
+                    {% if current_user.is_admin() %}
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('abonos.editar', id=abono.id) }}" class="btn btn-warning w-100">
+                                <i class="fas fa-edit"></i> Editar Abono
+                            </a>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal"
+                                data-bs-target="#eliminarModal">
+                                <i class="fas fa-trash"></i> Eliminar Abono
+                            </button>
+                        </div>
+                    </div>
+                    <div class="alert alert-warning mt-2">
+                        <small>
+                            <i class="fas fa-exclamation-triangle"></i>
+                            <strong>Administrador:</strong> Puede editar o eliminar este abono. Estas acciones afectarán
+                            el saldo de la venta asociada.
+                        </small>
+                    </div>
+                    {% endif %}
+
+                    <div class="mt-3">
+                        <p class="mb-2">Compartir por WhatsApp:</p>
+                        <div class="text-center mt-2">
+                            <a href="{{ url_for('abonos.compartir', id=abono.id) }}" target="_blank"
+                                class="btn btn-success">
+                                <i class="fab fa-whatsapp"></i> Compartir PDF
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if abono.movimientos_caja %}
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Información de Caja</h5>
+                </div>
+                <div class="card-body">
+                    {% for movimiento in abono.movimientos_caja %}
+                    <p><strong>Caja:</strong> {{ movimiento.caja.nombre }} ({{ movimiento.caja.tipo }})</p>
+                    <p><strong>Tipo de Movimiento:</strong> <span class="badge bg-success">Entrada</span></p>
+                    <p><strong>Monto:</strong> {{ "${:,}".format(movimiento.monto) }}</p>
+                    <p><strong>Concepto:</strong> {{ movimiento.descripcion }}</p>
+                    <p><strong>Fecha:</strong> {{ movimiento.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                    {% if not loop.last %}
+                    <hr>{% endif %}
+                    {% else %}
+                    <p class="text-muted">No hay movimiento de caja asociado directamente a este abono.</p>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="mb-0">Historial de Abonos de la Factura #{{ abono.venta_id }}</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Abono</th>
+                            <th>Fecha</th>
+                            <th>Monto</th>
+                            <th>Cobrador</th>
+                            <th>Notas</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if abono.venta and abono.venta.abonos %}
+                        {% for a_hist in abono.venta.abonos|sort(attribute='fecha', reverse=True) %}
+                        <tr {% if a_hist.id==abono.id %}class="table-info" {% endif %}>
+                            <td>{{ a_hist.id }}</td>
+                            <td>{{ a_hist.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ "${:,}".format(a_hist.monto) }}</td>
+                            <td>{{ a_hist.cobrador.nombre }}</td>
+                            <td>{{ a_hist.notas or 'N/A' }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('abonos.detalle', id=a_hist.id) }}" class="btn btn-sm btn-info"
+                                        data-bs-toggle="tooltip" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('abonos.pdf', id=a_hist.id) }}" target="_blank"
+                                        class="btn btn-sm btn-secondary" data-bs-toggle="tooltip" title="Ver PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    {% if current_user.is_admin() %}
+                                    <a href="{{ url_for('abonos.editar', id=a_hist.id) }}"
+                                        class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="6" class="text-center py-3">No se han registrado otros abonos para esta venta.
+                            </td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            <th colspan="2" class="text-end">Total Abonado a esta Factura:</th>
+                            <th>{{ "${:,}".format(abono.venta.total - abono.venta.saldo_pendiente) }}</th>
+                            <th colspan="3"></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Eliminación (solo para administradores) -->
+{% if current_user.is_admin() %}
+<div class="modal fade" id="eliminarModal" tabindex="-1" aria-labelledby="eliminarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="eliminarModalLabel">Confirmar Eliminación de Abono</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>¡Atención!</strong> Esta acción no se puede deshacer.
+                </div>
+
+                <p>¿Está seguro de eliminar el abono #{{ abono.id }}?</p>
+
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>Cliente:</strong> {{ abono.venta.cliente.nombre }}</p>
+                        <p><strong>Venta:</strong> #{{ abono.venta_id }}</p>
+                        <p><strong>Monto:</strong> ${{ "{:,}".format(abono.monto) }}</p>
+                        <p><strong>Fecha:</strong> {{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Cobrador:</strong> {{ abono.cobrador.nombre }}</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    <strong>Consecuencias de eliminar este abono:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>El saldo pendiente de la venta #{{ abono.venta_id }} aumentará en ${{
+                            "{:,}".format(abono.monto) }}</li>
+                        <li>Se revertirán los movimientos de caja asociados (se restará ${{ "{:,}".format(abono.monto)
+                            }} de la caja {{ abono.caja.nombre }})</li>
+                        <li>Se eliminarán las comisiones generadas por este abono</li>
+                        <li>El estado de la venta cambiará a "pendiente"</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('abonos.eliminar', id=abono.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Eliminar Abono
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

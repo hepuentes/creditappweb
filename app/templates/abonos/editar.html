@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Abono #{{ abono.id }} - CreditApp{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Editar Abono #{{ abono.id }}</h1>
+            <div>
+                <a href="{{ url_for('abonos.detalle', id=abono.id) }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Datos del Abono</h5>
+                    </div>
+                    <div class="card-body">
+                        <!-- Información del abono original -->
+                        <div class="alert alert-info mb-4">
+                            <h6><i class="fas fa-info-circle"></i> Información Original</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Fecha:</strong> {{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                                    <p class="mb-1"><strong>Cliente:</strong> {{ abono.venta.cliente.nombre }}</p>
+                                    <p class="mb-1"><strong>Monto Original:</strong> ${{ "{:,}".format(abono.monto) }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Venta:</strong> #{{ abono.venta_id }}</p>
+                                    <p class="mb-1"><strong>Cobrador:</strong> {{ abono.cobrador.nombre }}</p>
+                                    <p class="mb-1"><strong>Caja Original:</strong> {{ abono.caja.nombre }}</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="POST" id="abonoEditForm">
+                            {{ form.hidden_tag() }}
+
+                            <!-- Cliente (solo lectura) -->
+                            <div class="mb-3">
+                                <label class="form-label">Cliente</label>
+                                <input type="text" class="form-control" 
+                                       value="{{ abono.venta.cliente.nombre }} - {{ abono.venta.cliente.cedula }}" 
+                                       readonly>
+                                <input type="hidden" name="cliente_id" value="{{ abono.venta.cliente_id }}">
+                            </div>
+
+                            <!-- Venta (solo lectura) -->
+                            <div class="mb-3">
+                                <label class="form-label">Venta</label>
+                                <input type="text" class="form-control" 
+                                       value="Venta #{{ abono.venta_id }} - {{ abono.venta.fecha.strftime('%d/%m/%Y') }} - Saldo Actual: ${{ '{:,}'.format(abono.venta.saldo_pendiente + abono.monto) }}" 
+                                       readonly>
+                                <input type="hidden" name="venta_id" value="{{ abono.venta_id }}">
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i> Saldo disponible para este abono (incluyendo monto actual): ${{ "{:,}".format(abono.venta.saldo_pendiente + abono.monto) }}
+                                </div>
+                            </div>
+
+                            <!-- Monto del abono -->
+                            <div class="mb-3">
+                                <label class="form-label">Monto *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="monto_input"
+                                        name="monto"
+                                        required
+                                        value="{{ form.monto.data or '' }}"
+                                        placeholder="Ingrese el nuevo monto"
+                                    >
+                                </div>
+                                <div class="form-text">
+                                    <i class="fas fa-exclamation-triangle text-warning"></i> 
+                                    El monto máximo permitido es ${{ "{:,}".format(abono.venta.saldo_pendiente + abono.monto) }}
+                                </div>
+                            </div>
+
+                            <!-- Caja -->
+                            <div class="mb-3">
+                                <label class="form-label">Caja *</label>
+                                <select class="form-select" id="caja_id" name="caja_id" required>
+                                    {% for id, nombre in form.caja_id.choices %}
+                                        <option value="{{ id }}" {% if form.caja_id.data == id %}selected{% endif %}>{{ nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    <i class="fas fa-info-circle"></i> Si cambia la caja, el movimiento se registrará en la nueva caja seleccionada.
+                                </div>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="mb-3">
+                                <label class="form-label">Notas</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3">{{ form.notas.data or '' }}</textarea>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="d-flex justify-content-end mt-4">
+                                <a href="{{ url_for('abonos.detalle', id=abono.id) }}" class="btn btn-secondary me-2">Cancelar</a>
+                                <button type="submit" class="btn btn-warning">
+                                    <i class="fas fa-save"></i> Guardar Cambios
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript para validación del monto -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const montoInput = document.getElementById('monto_input');
+            const form = document.getElementById('abonoEditForm');
+            const montoMaximo = {{ abono.venta.saldo_pendiente + abono.monto }};
+
+            // Validación en tiempo real del monto
+            if (montoInput) {
+                montoInput.addEventListener('input', function() {
+                    // Solo permitir dígitos
+                    let value = this.value;
+                    value = value.replace(/[^\d]/g, '');
+                    this.value = value;
+                    
+                    // Validar contra monto máximo
+                    if (value && parseInt(value, 10) > montoMaximo) {
+                        this.classList.add('is-invalid');
+                        this.nextElementSibling.innerHTML = `
+                            <i class="fas fa-exclamation-triangle text-danger"></i> 
+                            El monto no puede ser mayor a $${montoMaximo.toLocaleString('es')}
+                        `;
+                    } else {
+                        this.classList.remove('is-invalid');
+                        this.nextElementSibling.innerHTML = `
+                            <i class="fas fa-exclamation-triangle text-warning"></i> 
+                            El monto máximo permitido es $${montoMaximo.toLocaleString('es')}
+                        `;
+                    }
+                });
+            }
+
+            // Validación antes de enviar el formulario
+            if (form) {
+                form.addEventListener('submit', function(e) {
+                    const monto = montoInput.value.trim();
+                    
+                    if (!monto || monto === "0") {
+                        e.preventDefault();
+                        alert("Por favor ingrese un monto válido.");
+                        montoInput.focus();
+                        return false;
+                    }
+                    
+                    const montoNum = parseInt(monto, 10);
+                    if (montoNum > montoMaximo) {
+                        e.preventDefault();
+                        alert(`El monto no puede ser mayor a $${montoMaximo.toLocaleString('es')}.`);
+                        montoInput.focus();
+                        return false;
+                    }
+                    
+                    // Confirmar la edición
+                    const confirmacion = confirm(`¿Está seguro de modificar este abono?\n\nNuevo monto: $${montoNum.toLocaleString('es')}\n\nEsta acción afectará el saldo de la venta asociada.`);
+                    if (!confirmacion) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    
+                    return true;
+                });
+            }
+        });
+    </script>
+{% endblock %}

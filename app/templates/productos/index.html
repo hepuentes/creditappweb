@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Inventario - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Inventario</h1>
+
+        {% if not solo_consulta %}
+        <a href="{{ url_for('productos.crear') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nuevo Producto
+        </a>
+        {% endif %}
+    </div>
+
+    <!-- Búsqueda -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('productos.index') }}" class="row g-3">
+                <div class="col-md-6">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="busqueda" placeholder="Buscar por nombre o código..." value="{{ busqueda }}">
+                        <button class="btn btn-outline-primary" type="submit">
+                            <i class="fas fa-search"></i> Buscar
+                        </button>
+                    </div>
+                </div>
+                {% if busqueda %}
+                <div class="col-md-2">
+                    <a href="{{ url_for('productos.index') }}" class="btn btn-outline-secondary w-100">
+                        <i class="fas fa-times"></i> Limpiar
+                    </a>
+                </div>
+                {% endif %}
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen del Inventario -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ productos|length }}</h3>
+                    <p class="mb-0">Total Productos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ productos|selectattr('esta_agotado')|list|length|default(0) }}</h3>
+                    <p class="mb-0">Productos Agotados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ productos|rejectattr('esta_agotado')|selectattr('stock_bajo')|list|length|default(0) }}</h3>
+                    <p class="mb-0">Stock Bajo</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+    <div class="card bg-success text-white h-100">
+        <div class="card-body text-center">
+            {% if current_user.is_admin() %}
+            <h3 class="mb-0">{{ "${:,}".format(productos|sum(attribute='precio_compra')|default(0)|float) }}</h3>
+            <p class="mb-0">Valor Inventario (Costo)</p>
+            {% else %}
+            <h3 class="mb-0">{{ productos|length - (productos|selectattr('esta_agotado')|list|length|default(0)) }}</h3>
+            <p class="mb-0">Productos Disponibles</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+    </div>
+
+    <!-- Listado de productos -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Listado de Productos</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Código</th>
+                            <th>Nombre</th>
+                            <th>Unidad</th>
+                            <th>Precio Costo</th>
+                            <th>Precio Venta</th>
+                            <th>Stock</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if productos %}
+                            {% for producto in productos %}
+                            <tr {% if producto.esta_agotado() %}class="table-danger"{% elif producto.stock_bajo() %}class="table-warning"{% endif %}>
+                                <td>{{ producto.codigo }}</td>
+                                <td>{{ producto.nombre }}</td>
+                                <td>{{ producto.unidad or 'Und.' }}</td>
+                                <td>{{ "${:,}".format(producto.precio_compra|default(0)) }}</td>
+                                <td>{{ "${:,}".format(producto.precio_venta|default(0)) }}</td>
+                                <td>
+                                    {% if producto.esta_agotado() %}
+                                    <span class="badge bg-danger">Agotado</span>
+                                    {% elif producto.stock_bajo() %}
+                                    <span class="badge bg-warning text-dark">Bajo ({{ producto.stock }})</span>
+                                    {% else %}
+                                    {{ producto.stock }}
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('productos.detalle', id=producto.id) }}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if not solo_consulta %}
+                                    <a href="{{ url_for('productos.editar', id=producto.id) }}" class="btn btn-sm btn-warning" data-bs-toggle="tooltip" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal" data-bs-target="#eliminarModal{{ producto.id }}" title="Eliminar">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-3">No se encontraron productos.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales de Eliminación -->
+{% if not solo_consulta %}
+{% for producto in productos %}
+<div class="modal fade" id="eliminarModal{{ producto.id }}" tabindex="-1" aria-labelledby="eliminarModalLabel{{ producto.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="eliminarModalLabel{{ producto.id }}">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar el producto <strong>{{ producto.nombre }}</strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('productos.eliminar', id=producto.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

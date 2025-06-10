@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+
+{% block title %}Nueva Caja - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Nueva Caja</h1>
+        <div>
+            <a href="{{ url_for('cajas.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Datos de la Caja</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.nombre.label(class="form-label") }}
+                            {% if form.nombre.errors %}
+                                {{ form.nombre(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.nombre.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.nombre(class="form-control") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.tipo.label(class="form-label") }}
+                            {% if form.tipo.errors %}
+                                {{ form.tipo(class="form-select is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.tipo.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.tipo(class="form-select") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.saldo_inicial.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {% if form.saldo_inicial.errors %}
+                                    {{ form.saldo_inicial(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.saldo_inicial.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.saldo_inicial(class="form-control") }}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('cajas.index') }}" class="btn btn-secondary me-2">Cancelar</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.querySelector('form');
+        const saldoInicialInput = document.getElementById('saldo_inicial');
+        
+        if (form && saldoInicialInput) {
+            // Permitir el valor 0 explícitamente
+            saldoInicialInput.addEventListener('input', function() {
+                // Permitir solo números y un punto decimal
+                this.value = this.value.replace(/[^\d.]/g, '');
+                
+                // Asegurar que solo haya un punto decimal
+                const parts = this.value.split('.');
+                if (parts.length > 2) {
+                    this.value = parts[0] + '.' + parts.slice(1).join('');
+                }
+            });
+            
+            form.addEventListener('submit', function(e) {
+                // Verificar que el campo tenga un valor (puede ser 0)
+                if (saldoInicialInput.value === '') {
+                    e.preventDefault();
+                    alert('Debe ingresar un saldo inicial (puede ser 0)');
+                    saldoInicialInput.focus();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

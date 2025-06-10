@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - CreditApp{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+    <h1 class="mb-4">Dashboard</h1>
+
+    <!-- Tarjetas del Dashboard con mejor disposición -->
+    <div class="card-dashboard-container">
+        <!-- Clientes -->
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-primary">
+                    <i class="fas fa-users"></i>
+                </div>
+                <h1 class="card-value">{{ total_clientes }}</h1>
+                <div class="card-label">
+                    {% if current_user.is_cobrador() %}
+                    Clientes con Créditos
+                    {% else %}
+                    Clientes
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('clientes.index') }}" class="btn btn-sm btn-primary w-100">Ver Clientes</a>
+            </div>
+        </div>
+
+        <!-- Productos (solo vendedores y admin) -->
+        {% if current_user.is_vendedor() or current_user.is_admin() %}
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-success">
+                    <i class="fas fa-box"></i>
+                </div>
+                <h1 class="card-value">{{ total_productos }}</h1>
+                <div class="card-label">Productos</div>
+                {% if productos_agotados > 0 %}
+                <div class="text-danger mt-1">
+                    <small>{{ productos_agotados }} agotados</small>
+                </div>
+                {% endif %}
+                {% if productos_stock_bajo > 0 %}
+                <div class="text-warning mt-1">
+                    <small>{{ productos_stock_bajo }} con stock bajo</small>
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('productos.index') }}" class="btn btn-sm btn-success w-100">Ver Inventario</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Ventas del Mes (solo vendedores y admin) -->
+        {% if current_user.is_vendedor() or current_user.is_admin() %}
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-primary">
+                    <i class="fas fa-shopping-cart"></i>
+                </div>
+                <h1 class="card-value">{{ ventas_mes }}</h1>
+                <div class="card-label">
+                    {% if current_user.is_vendedor() %}
+                    Mis Ventas del Mes
+                    {% else %}
+                    Ventas del Mes
+                    {% endif %}
+                </div>
+                <div class="mt-1">
+                    <small>{{ total_ventas_mes }}</small>
+                </div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('ventas.index') }}" class="btn btn-sm btn-primary w-100">Ver Ventas</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Créditos Activos (todos los roles) -->
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-warning">
+                    <i class="fas fa-credit-card"></i>
+                </div>
+                <h1 class="card-value">{{ creditos_activos }}</h1>
+                <div class="card-label">Créditos Activos</div>
+                <div class="mt-1">
+                    <small>{{ total_creditos }}</small>
+                </div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('creditos.index') }}" class="btn btn-sm btn-warning w-100">Ver Créditos</a>
+            </div>
+        </div>
+
+        <!-- Abonos del Mes (cobradores y admin) -->
+        {% if current_user.is_cobrador() or current_user.is_admin() %}
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-success">
+                    <i class="fas fa-money-bill-wave"></i>
+                </div>
+                <h1 class="card-value">{{ abonos_mes }}</h1>
+                <div class="card-label">
+                    {% if current_user.is_cobrador() %}
+                    Mis Abonos del Mes
+                    {% else %}
+                    Abonos del Mes
+                    {% endif %}
+                </div>
+                <div class="mt-1">
+                    <small>{{ total_abonos_mes }}</small>
+                </div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('abonos.index') }}" class="btn btn-sm btn-success w-100">Ver Abonos</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Saldo en Cajas (solo admin) -->
+        {% if current_user.is_admin() %}
+        <div class="card card-dashboard bg-light">
+            <div class="card-body text-center">
+                <div class="card-icon text-info">
+                    <i class="fas fa-cash-register"></i>
+                </div>
+                <h1 class="card-value">{{ total_cajas }}</h1>
+                <div class="card-label">Saldo en Cajas</div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('cajas.index') }}" class="btn btn-sm btn-info w-100">Ver Cajas</a>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Comisión Acumulada (vendedores y cobradores) -->
+        {% if current_user.is_vendedor() or current_user.is_cobrador() %}
+        <div class="card card-dashboard bg-light">
+            <div class="card-body">
+                <div class="card-icon text-danger">
+                    <i class="fas fa-percentage"></i>
+                </div>
+                <h1 class="card-value">{{ total_comision }}</h1>
+                <div class="card-label">Mis Comisiones</div>
+            </div>
+            <div class="card-footer p-2">
+                <a href="{{ url_for('reportes.comisiones') }}" class="btn btn-sm btn-danger w-100">Ver Mis Comisiones</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    {% if current_user.is_admin() %}
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('clientes.crear') }}" class="btn btn-primary w-100">
+                                <i class="fas fa-user-plus me-2"></i> Nuevo Cliente
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('productos.crear') }}" class="btn btn-success w-100">
+                                <i class="fas fa-plus-circle me-2"></i> Nuevo Producto
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('ventas.crear') }}" class="btn btn-info w-100">
+                                <i class="fas fa-cart-plus me-2"></i> Nueva Venta
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('abonos.crear') }}" class="btn btn-warning w-100">
+                                <i class="fas fa-hand-holding-usd me-2"></i> Nuevo Abono
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

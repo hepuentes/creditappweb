@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block title %}Movimientos de Caja - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Movimientos de Caja: {{ caja.nombre }}</h1>
+        <div>
+            <a href="{{ url_for('cajas.index') }}" class="btn btn-secondary me-2">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <div class="btn-group">
+                <button type="button" class="btn btn-success dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fas fa-plus"></i> Nuevo Movimiento
+                </button>
+                <ul class="dropdown-menu">
+                    <li><a class="dropdown-item" href="{{ url_for('cajas.nuevo_movimiento', id=caja.id, tipo='entrada') }}">Entrada</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('cajas.nuevo_movimiento', id=caja.id, tipo='salida') }}">Salida</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('cajas.nuevo_movimiento', id=caja.id, tipo='transferencia') }}">Transferencia</a></li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información de la caja -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-3">
+                    <p class="mb-0"><strong>Nombre:</strong> {{ caja.nombre }}</p>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-0"><strong>Tipo:</strong>
+                        {% if caja.tipo == 'efectivo' %}
+                        <span class="badge bg-success">Efectivo</span>
+                        {% elif caja.tipo == 'nequi' %}
+                        <span class="badge bg-primary">Nequi</span>
+                        {% elif caja.tipo == 'daviplata' %}
+                        <span class="badge bg-warning text-dark">Daviplata</span>
+                        {% else %}
+                        <span class="badge bg-info">Transferencia</span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-0"><strong>Saldo Inicial:</strong> {{ "${:,}".format(caja.saldo_inicial) }}</p>
+                </div>
+                <div class="col-md-3">
+                    <p class="mb-0"><strong>Saldo Actual:</strong> <span class="fw-bold">{{ "${:,}".format(caja.saldo_actual) }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('cajas.movimientos', id=caja.id) }}" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" name="desde" value="{{ desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" name="hasta" value="{{ hasta }}">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Tipo</label>
+                    <select class="form-select" name="tipo">
+                        <option value="" {% if tipo == '' %}selected{% endif %}>Todos</option>
+                        <option value="entrada" {% if tipo == 'entrada' %}selected{% endif %}>Entradas</option>
+                        <option value="salida" {% if tipo == 'salida' %}selected{% endif %}>Salidas</option>
+                        <option value="transferencia" {% if tipo == 'transferencia' %}selected{% endif %}>Transferencias</option>
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen de Movimientos -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "${:,}".format(total_entradas) }}</h3>
+                    <p class="mb-0">Total Entradas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "${:,}".format(total_salidas) }}</h3>
+                    <p class="mb-0">Total Salidas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "${:,}".format(total_transferencias) }}</h3>
+                    <p class="mb-0">Total Transferencias</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listado de movimientos -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Listado de Movimientos</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Monto</th>
+                            <th>Concepto</th>
+                            <th>Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if movimientos %}
+                            {% for movimiento in movimientos %}
+                            <tr>
+                                <td>{{ movimiento.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    {% if movimiento.tipo == 'entrada' %}
+                                    <span class="badge bg-success">Entrada</span>
+                                    {% elif movimiento.tipo == 'salida' %}
+                                    <span class="badge bg-danger">Salida</span>
+                                    {% else %}
+                                    <span class="badge bg-info">Transferencia</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "${:,}".format(movimiento.monto) }}</td>
+                                <td>{{ movimiento.concepto }}</td>
+                                <td>
+                                    {% if movimiento.venta_id %}
+                                    <a href="{{ url_for('ventas.detalle', id=movimiento.venta_id) }}" class="btn btn-sm btn-primary">
+                                        <i class="fas fa-receipt"></i> Venta #{{ movimiento.venta_id }}
+                                    </a>
+                                    {% elif movimiento.abono_id %}
+                                    <a href="{{ url_for('abonos.detalle', id=movimiento.abono_id) }}" class="btn btn-sm btn-success">
+                                        <i class="fas fa-money-bill-wave"></i> Abono #{{ movimiento.abono_id }}
+                                    </a>
+                                    {% elif movimiento.caja_destino_id %}
+                                    <a href="{{ url_for('cajas.detalle', id=movimiento.caja_destino_id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-exchange-alt"></i> A Caja #{{ movimiento.caja_destino_id }}
+                                    </a>
+                                    {% else %}
+                                    <span class="text-muted">N/A</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3">No hay movimientos registrados.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

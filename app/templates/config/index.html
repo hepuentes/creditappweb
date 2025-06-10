@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+
+{% block title %}Configuración - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Configuración del Sistema</h1>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Configuración General</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <h6 class="text-primary mb-3">Información de la Empresa</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.nombre_empresa.label(class="form-label") }}
+                                {% if form.nombre_empresa.errors %}
+                                    {{ form.nombre_empresa(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.nombre_empresa.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.nombre_empresa(class="form-control") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                {{ form.logo.label(class="form-label") }}
+                                {% if form.logo.errors %}
+                                    {{ form.logo(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.logo.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.logo(class="form-control") }}
+                                {% endif %}
+                                <div class="form-text">Formatos permitidos: JPG, PNG.</div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.direccion.label(class="form-label") }}
+                                {% if form.direccion.errors %}
+                                    {{ form.direccion(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.direccion.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.direccion(class="form-control") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                {{ form.telefono.label(class="form-label") }}
+                                {% if form.telefono.errors %}
+                                    {{ form.telefono(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.telefono.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.telefono(class="form-control") }}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+                        <h6 class="text-primary mb-3">Configuración Monetaria</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.moneda.label(class="form-label") }}
+                                {% if form.moneda.errors %}
+                                    {{ form.moneda(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.moneda.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.moneda(class="form-control") }}
+                                {% endif %}
+                                <div class="form-text">Ejemplo: $, €, £</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                {{ form.iva.label(class="form-label") }}
+                                <div class="input-group">
+                                    {% if form.iva.errors %}
+                                        {{ form.iva(class="form-control is-invalid") }}
+                                        <span class="input-group-text">%</span>
+                                        <div class="invalid-feedback">
+                                            {% for error in form.iva.errors %}
+                                                {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                    {% else %}
+                                        {{ form.iva(class="form-control") }}
+                                        <span class="input-group-text">%</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+<h6 class="text-primary mb-3">Configuración de Comisiones</h6>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        {{ form.porcentaje_comision_vendedor.label(class="form-label") }}
+        <div class="input-group">
+            {% if form.porcentaje_comision_vendedor.errors %}
+                {{ form.porcentaje_comision_vendedor(class="form-control is-invalid") }}
+                <span class="input-group-text">%</span>
+                <div class="invalid-feedback">
+                    {% for error in form.porcentaje_comision_vendedor.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.porcentaje_comision_vendedor(class="form-control") }}
+                <span class="input-group-text">%</span>
+            {% endif %}
+        </div>
+        <div class="form-text">Comisión por ventas realizadas</div>
+    </div>
+
+    <div class="col-md-6">
+        {{ form.porcentaje_comision_cobrador.label(class="form-label") }}
+        <div class="input-group">
+            {% if form.porcentaje_comision_cobrador.errors %}
+                {{ form.porcentaje_comision_cobrador(class="form-control is-invalid") }}
+                <span class="input-group-text">%</span>
+                <div class="invalid-feedback">
+                    {% for error in form.porcentaje_comision_cobrador.errors %}
+                        {{ error }}
+                    {% endfor %}
+                </div>
+            {% else %}
+                {{ form.porcentaje_comision_cobrador(class="form-control") }}
+                <span class="input-group-text">%</span>
+            {% endif %}
+        </div>
+        <div class="form-text">Comisión por abonos recibidos</div>
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-6">
+        {{ form.periodo_comision.label(class="form-label") }}
+        {% if form.periodo_comision.errors %}
+            {{ form.periodo_comision(class="form-select is-invalid") }}
+            <div class="invalid-feedback">
+                {% for error in form.periodo_comision.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% else %}
+            {{ form.periodo_comision(class="form-select") }}
+        {% endif %}
+    </div>
+</div>
+
+                        <hr class="my-4">
+                        <h6 class="text-primary mb-3">Configuración de Seguridad</h6>
+
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                {{ form.min_password.label(class="form-label") }}
+                                {% if form.min_password.errors %}
+                                    {{ form.min_password(class="form-control is-invalid") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.min_password.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.min_password(class="form-control") }}
+                                {% endif %}
+                                <div class="form-text">Tamaño mínimo recomendado: 8 caracteres.</div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Logo Actual</h5>
+                </div>
+                <div class="card-body text-center">
+                    {% if config.logo %}
+                    <img src="{{ url_for('static', filename='uploads/' + config.logo) }}" alt="Logo de la Empresa" class="img-fluid" style="max-height: 150px;">
+                    {% else %}
+                    <div class="alert alert-info">
+                        No hay logo configurado.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información Actual</h5>
+                </div>
+                <div class="info-section">
+    <h5>Información financiera</h5>
+    <p><strong>Símbolo de Moneda:</strong> {{ config.moneda }}</p>
+    <p><strong>IVA:</strong> {{ config.iva }}%</p>
+    <p><strong>Comisión Vendedores:</strong> {{ config.porcentaje_comision_vendedor or 5 }}% ({{ config.periodo_comision }})</p>
+    <p><strong>Comisión Cobradores:</strong> {{ config.porcentaje_comision_cobrador or 3 }}% ({{ config.periodo_comision }})</p>
+    <p><strong>Tamaño Mínimo de Contraseña:</strong> {{ config.min_password }} caracteres</p>
+</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

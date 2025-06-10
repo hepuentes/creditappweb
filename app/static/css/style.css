@@ -1,0 +1,511 @@
+/* Global Styles */
+:root {
+    --primary-color: #007bff;
+    --secondary-color: #6c757d;
+    --success-color: #28a745;
+    --danger-color: #dc3545;
+    --warning-color: #ffc107;
+    --info-color: #17a2b8;
+    --light-color: #f8f9fa;
+    --dark-color: #343a40;
+    --sidebar-width: 250px;
+    --sidebar-width-collapsed: 70px;
+    --header-height: 60px;
+    --transition-speed: 0.3s;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f5;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow-x: hidden;
+}
+
+.wrapper {
+   display: flex;
+   align-items: stretch;
+   flex-grow: 1;
+}
+
+/* Sidebar Styles */
+.sidebar {
+   min-width: var(--sidebar-width);
+   max-width: var(--sidebar-width);
+   background: #343a40;
+   color: #fff;
+   transition: all var(--transition-speed) ease;
+   height: 100vh;
+   position: fixed;
+   top: 0;
+   left: 0;
+   z-index: 1050;
+   overflow-y: auto;
+   box-shadow: 2px 0 5px rgba(0,0,0,0.1);
+}
+
+/* Sidebar Collapsed State */
+.sidebar.collapsed {
+   min-width: var(--sidebar-width-collapsed);
+   max-width: var(--sidebar-width-collapsed);
+}
+
+.sidebar.collapsed .sidebar-header h3 {
+   display: none;
+}
+
+.sidebar.collapsed ul li a span {
+   display: none;
+}
+
+.sidebar.collapsed ul li a {
+   text-align: center;
+   padding: 15px 0;
+}
+
+.sidebar.collapsed ul li a i {
+   font-size: 1.5rem;
+   margin-right: 0;
+   display: block;
+   width: 100%;
+   text-align: center;
+}
+
+.sidebar.collapsed ul ul a {
+   padding-left: 0 !important;
+}
+
+.sidebar .sidebar-header {
+   padding: 15px 20px;
+   background: #212529;
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   border-bottom: 1px solid #495057;
+}
+
+.sidebar .sidebar-header h3 {
+   color: #fff;
+   margin-bottom: 0;
+   font-size: 1.5rem;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+/* Enlaces del Sidebar */
+.sidebar ul.components {
+   padding: 15px 0;
+}
+
+.sidebar ul li a {
+   padding: 12px 20px;
+   font-size: 0.95em;
+   display: block;
+   color: #adb5bd;
+   text-decoration: none;
+   transition: all var(--transition-speed) ease;
+   border-left: 3px solid transparent;
+   white-space: nowrap;
+   overflow: hidden;
+   text-overflow: ellipsis;
+}
+
+.sidebar ul li a:hover {
+   color: #fff;
+   background: var(--primary-color);
+   border-left-color: #fff;
+}
+
+.sidebar ul li.active > a {
+   color: #fff;
+   background: var(--primary-color);
+   border-left-color: #fff;
+}
+
+.sidebar ul li a i {
+   margin-right: 12px;
+   width: 20px;
+   text-align: center;
+   transition: all var(--transition-speed) ease;
+}
+
+.sidebar ul ul a {
+   padding-left: 45px !important;
+   background: #2c3136;
+   font-size: 0.9em;
+}
+
+/* Content Styles - CORREGIDO PARA ADAPTARSE AL SIDEBAR */
+#content {
+   width: calc(100% - var(--sidebar-width));
+   margin-left: var(--sidebar-width);
+   padding: 0;
+   min-height: 100vh;
+   transition: all var(--transition-speed) ease;
+   flex-grow: 1;
+   display: flex;
+   flex-direction: column;
+   position: relative;
+}
+
+/* Content with collapsed sidebar - CORREGIDO */
+.sidebar.collapsed ~ #content {
+   width: calc(100% - var(--sidebar-width-collapsed));
+   margin-left: var(--sidebar-width-collapsed);
+}
+
+/* Alternativa usando clase en body si es necesario */
+body.sidebar-collapsed #content {
+   width: calc(100% - var(--sidebar-width-collapsed));
+   margin-left: var(--sidebar-width-collapsed);
+}
+
+/* Navbar Principal */
+#content > .navbar {
+   padding: 10px 20px;
+   background-color: #fff;
+   border-bottom: 1px solid #dee2e6;
+   box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+   min-height: var(--header-height);
+   display: flex;
+   align-items: center;
+   position: sticky;
+   top: 0;
+   z-index: 1030;
+}
+
+/* Botón toggle sidebar en desktop y móvil */
+#sidebarCollapseContent, #sidebarCollapseDesktop {
+   background: var(--primary-color);
+   border: none;
+   color: white;
+   padding: 8px 12px;
+   border-radius: 4px;
+   cursor: pointer;
+   transition: all var(--transition-speed) ease;
+}
+
+#sidebarCollapseContent:hover, #sidebarCollapseDesktop:hover {
+   background: #0056b3;
+}
+
+#sidebarCollapseContent i, #sidebarCollapseDesktop i {
+   font-size: 1.2rem;
+}
+
+#sidebarCollapseDesktop {
+   background: transparent;
+   color: var(--primary-color);
+   border: 1px solid var(--primary-color);
+}
+
+#sidebarCollapseDesktop:hover {
+   background: rgba(0, 123, 255, 0.1);
+}
+
+/* Perfil de usuario mejorado */
+.user-profile-dropdown {
+   position: relative;
+}
+
+.user-profile-link {
+   text-decoration: none;
+   color: var(--dark-color);
+   display: flex;
+   align-items: center;
+   padding: 0.5rem;
+   border-radius: 0.25rem;
+   transition: all 0.2s ease;
+}
+
+.user-profile-link:hover {
+   background-color: rgba(0, 0, 0, 0.05);
+   color: var(--dark-color);
+}
+
+.avatar-circle {
+   width: 35px;
+   height: 35px;
+   background-color: var(--primary-color);
+   border-radius: 50%;
+   display: flex;
+   justify-content: center;
+   align-items: center;
+   color: white;
+   font-weight: bold;
+}
+
+.initials {
+   font-size: 1.2rem;
+}
+
+.user-info {
+   line-height: 1.2;
+}
+
+.user-name {
+   font-weight: 600;
+   font-size: 0.95rem;
+}
+
+.user-role {
+   font-size: 0.8rem;
+   color: var(--secondary-color);
+}
+
+/* RESPONSIVE STYLES */
+@media (max-width: 767.98px) {
+   /* En móvil, sidebar oculto por defecto */
+   .sidebar {
+       margin-left: calc(-1 * var(--sidebar-width));
+       transition: margin-left var(--transition-speed) ease;
+       z-index: 1060;
+   }
+
+   /* Cuando sidebar está activo (visible) en móvil */
+   .sidebar.show {
+       margin-left: 0;
+   }
+
+   /* Content ocupa todo el ancho en móvil */
+   #content {
+       width: 100% !important;
+       margin-left: 0 !important;
+   }
+
+   /* Mostrar botón hamburguesa en móvil */
+   #content > .navbar #sidebarCollapseContent {
+       display: block !important;
+   }
+
+   /* Overlay cuando sidebar está abierto en móvil */
+   body.sidebar-open::before {
+       content: '';
+       position: fixed;
+       top: 0;
+       right: 0;
+       bottom: 0;
+       left: 0;
+       background-color: rgba(0, 0, 0, 0.5);
+       z-index: 1050;
+       opacity: 1;
+       transition: opacity var(--transition-speed) ease;
+   }
+
+   /* Ajustes de padding para móvil */
+   .container-fluid {
+       padding-left: 15px;
+       padding-right: 15px;
+   }
+
+   /* Ocultar botón del sidebar header en móvil */
+   .sidebar .sidebar-header button {
+       display: none !important;
+   }
+
+   /* Responsive order for mobile - NUEVAS REGLAS PARA VENTAS */
+   .datos-venta-column {
+       order: 1;
+   }
+   .productos-disponibles-column {
+       order: 2;
+   }
+   .productos-seleccionados-section {
+       order: 3;
+   }
+}
+
+/* Para tablets y pantallas medianas */
+@media (min-width: 768px) and (max-width: 991.98px) {
+   :root {
+       --sidebar-width: 220px;
+       --sidebar-width-collapsed: 60px;
+   }
+   
+   .sidebar ul li a {
+       padding: 10px 15px;
+       font-size: 0.9em;
+   }
+}
+
+/* Dashboard Cards Responsive */
+.card-dashboard-container {
+   display: grid;
+   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+   gap: 1rem;
+   width: 100%;
+}
+
+.card-dashboard { 
+   text-align: center; 
+   min-height: 160px; 
+   display: flex; 
+   flex-direction: column; 
+   height: 100%;
+}
+
+.card-dashboard .card-body { 
+   flex-grow: 1; 
+   display: flex; 
+   flex-direction: column; 
+   justify-content: center; 
+}
+
+.card-dashboard .card-value { 
+   font-size: 2.5rem; 
+   font-weight: 700; 
+   margin-bottom: 0; 
+}
+
+.card-dashboard .card-label { 
+   font-size: 1rem; 
+   color: #6c757d; 
+}
+
+.card-dashboard .card-icon { 
+   font-size: 1.8rem; 
+   margin-bottom: 10px; 
+}
+
+/* Resto del CSS original */
+.card {
+   margin-bottom: 20px;
+   border: none;
+   border-radius: 8px;
+   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+   transition: transform 0.2s ease;
+}
+
+.card:hover {
+   transform: translateY(-3px);
+}
+
+.card-header {
+   font-weight: 600;
+   background-color: #f8f9fa;
+   border-bottom: 1px solid #e9ecef;
+}
+
+/* Buttons and Forms */
+.btn-primary { 
+   background-color: var(--primary-color); 
+   border-color: var(--primary-color); 
+}
+
+.btn-primary:hover { 
+   background-color: #0069d9; 
+   border-color: #0062cc; 
+}
+
+/* Tables */
+.table-responsive { 
+   box-shadow: 0 2px 10px rgba(0,0,0,0.1); 
+   border-radius: 8px; 
+   overflow: hidden; 
+}
+
+.table { 
+   margin-bottom: 0; 
+}
+
+.table thead th { 
+   background-color: #f8f9fa; 
+   border-bottom: 2px solid #dee2e6; 
+}
+
+.table-hover tbody tr:hover { 
+   background-color: rgba(0,123,255,0.05); 
+}
+
+/* Footer */
+.footer {
+   margin-top: auto;
+   background-color: #e9ecef;
+   border-top: 1px solid #dee2e6;
+   padding: 15px 0;
+}
+
+/* Login page styles */
+.login-container { 
+   min-height: 100vh; 
+   display: flex; 
+   align-items: center; 
+   justify-content: center; 
+   background-color: #f5f5f5; 
+}
+
+.login-form { 
+   max-width: 400px; 
+   width: 100%; 
+   padding: 30px; 
+   border-radius: 10px; 
+   background-color: #fff; 
+   box-shadow: 0 4px 20px rgba(0,0,0,0.1); 
+}
+
+.login-form .card-header { 
+   text-align: center; 
+   font-size: 24px; 
+   font-weight: 600; 
+   margin-bottom: 20px; 
+   border-bottom: none; 
+   background-color: transparent; 
+}
+
+.login-logo { 
+   text-align: center; 
+   margin-bottom: 25px; 
+}
+
+.login-logo img { 
+   max-width: 150px; 
+}
+
+/* Clases de utilidad */
+.form-text {
+ font-size: 0.85rem;
+}
+
+.form-control.is-invalid, .form-select.is-invalid {
+ background-position: right calc(0.375em + 0.55rem) center;
+}
+
+.numeric-only::-webkit-inner-spin-button, 
+.numeric-only::-webkit-outer-spin-button { 
+ -webkit-appearance: none; 
+ margin: 0; 
+}
+
+.numeric-only {
+ -moz-appearance: textfield;
+}
+
+.btn-group .btn-sm {
+ padding: 0.25rem 0.5rem;
+ font-size: 0.75rem;
+}
+
+.container-fluid {
+   width: 100%;
+   max-width: 100%;
+   box-sizing: border-box;
+}
+
+.table-responsive {
+   overflow-x: auto;
+   width: 100%;
+}
+
+.table th, .table td {
+   white-space: normal;
+   vertical-align: middle;
+}
+
+.row {
+   width: 100%;
+   margin-left: 0;
+   margin-right: 0;
+}

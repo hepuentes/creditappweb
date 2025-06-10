@@ -1,0 +1,33 @@
+# Ignorar entorno virtual de Python
+venv/
+.VENV/
+
+# Ignorar cachés de Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignorar archivos temporales del editor
+*.swp
+*.swo
+*.swn
+*.bak
+*.tmp
+
+# Ignorar configuración de IDE
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Ignorar archivos de logs
+*.log
+
+# Ignorar bases de datos SQLite locales (opcional)
+*.sqlite3
+
+# Ignorar carpetas ocultas de macOS (por si acaso)
+.DS_Store
+
+# Ignorar dependencias compiladas
+*.egg-info/

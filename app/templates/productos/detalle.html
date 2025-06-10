@@ -1,0 +1,254 @@
+{% extends "base.html" %}
+
+{% block title %}{{ producto.nombre }} - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Detalle de Producto</h1>
+        <div>
+            <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Información del producto -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información del Producto</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th style="width: 150px">Código:</th>
+                                    <td>{{ producto.codigo }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Nombre:</th>
+                                    <td>{{ producto.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Unidad:</th>
+                                    <td>{{ producto.unidad or 'Und.' }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Descripción:</th>
+                                    <td>{{ producto.descripcion or 'No disponible' }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <th style="width: 170px">Precio de Costo:</th>
+                                    <td>{{ "${:,}".format(producto.precio_compra) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Precio de Venta:</th>
+                                    <td>{{ "${:,}".format(producto.precio_venta) }}</td>
+                                </tr>
+                                <tr>
+                                    <th>Margen:</th>
+                                    <td>
+                                        {% if producto.precio_compra and producto.precio_compra > 0 %}
+                                            {{ "{:.2f}%".format(((producto.precio_venta - producto.precio_compra) / producto.precio_compra) * 100) }}
+                                        {% else %}
+                                            N/A
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <th>Fecha Registro:</th>
+                                    <td>{{ producto.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    {% if current_user.is_admin() %}
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#ajustarStockModal">
+                        <i class="fas fa-boxes"></i> Ajustar Stock
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header {% if producto.esta_agotado() %}bg-danger text-white{% elif producto.stock_bajo() %}bg-warning{% else %}bg-success text-white{% endif %}">
+                    <h5 class="mb-0">Inventario</h5>
+                </div>
+                <div class="card-body text-center">
+                    <h1 class="display-1 mb-3">{{ producto.stock }}</h1>
+                    <p class="mb-1">Stock Actual</p>
+                    <p class="text-muted">Stock Mínimo: {{ producto.stock_minimo }}</p>
+
+                    {% if producto.esta_agotado() %}
+                    <div class="alert alert-danger mt-3">
+                        <i class="fas fa-exclamation-triangle"></i> Este producto está <strong>AGOTADO</strong>
+                    </div>
+                    {% elif producto.stock_bajo() %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="fas fa-exclamation-circle"></i> Este producto tiene <strong>STOCK BAJO</strong>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-success mt-3">
+                        <i class="fas fa-check-circle"></i> Stock <strong>ADECUADO</strong>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    {% if current_user.is_admin() %}
+                    <button class="btn btn-primary w-100" data-bs-toggle="modal" data-bs-target="#ajustarStockModal">
+                        <i class="fas fa-boxes"></i> Ajustar Stock
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Acciones</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{{ url_for('ventas.crear', producto_id=producto.id) }}" class="btn btn-success w-100 mb-2">
+                        <i class="fas fa-cart-plus"></i> Añadir a Nueva Venta
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Histórico de ventas -->
+    <div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Histórico de Ventas</h5>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unit.</th>
+                        <th>Subtotal</th>
+                        <th>Tipo Venta</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if producto.detalles_venta %}
+                        {% set ventas_filtradas = [] %}
+                        {% for detalle in producto.detalles_venta %}
+                            {% if current_user.is_admin() or detalle.venta.vendedor_id == current_user.id %}
+                                {% set ventas_filtradas = ventas_filtradas + [detalle] %}
+                            {% endif %}
+                        {% endfor %}
+                        
+                        {% if ventas_filtradas %}
+                            {% for detalle in ventas_filtradas|sort(attribute='venta.fecha', reverse=True) %}
+                            <tr>
+                                <td>{{ detalle.venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('clientes.detalle', id=detalle.venta.cliente_id) }}">
+                                        {{ detalle.venta.cliente.nombre }}
+                                    </a>
+                                </td>
+                                <td>{{ detalle.cantidad }}</td>
+                                <td>{{ "${:,}".format(detalle.precio_unitario) }}</td>
+                                <td>{{ "${:,}".format(detalle.subtotal) }}</td>
+                                <td>
+                                    {% if detalle.venta.tipo == 'contado' %}
+                                    <span class="badge bg-success">Contado</span>
+                                    {% else %}
+                                    <span class="badge bg-warning">Crédito</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('ventas.detalle', id=detalle.venta_id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-3">No hay ventas de este producto realizadas por ti.</td>
+                            </tr>
+                        {% endif %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-3">Este producto no se ha vendido aún.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Eliminación -->
+<div class="modal fade" id="eliminarModal" tabindex="-1" aria-labelledby="eliminarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="eliminarModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar el producto <strong>{{ producto.nombre }}</strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('productos.eliminar', id=producto.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Ajuste de Stock -->
+<div class="modal fade" id="ajustarStockModal" tabindex="-1" aria-labelledby="ajustarStockModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="ajustarStockModalLabel">Ajustar Stock</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="formAjustarStock" action="{{ url_for('productos.editar', id=producto.id) }}" method="POST">
+                    {{ form.hidden_tag() }}
+                    <input type="hidden" name="codigo" value="{{ producto.codigo }}">
+                    <input type="hidden" name="nombre" value="{{ producto.nombre }}">
+                    <input type="hidden" name="descripcion" value="{{ producto.descripcion or '' }}">
+                    <input type="hidden" name="precio_costo" value="{{ producto.precio_costo }}">
+                    <input type="hidden" name="precio_venta" value="{{ producto.precio_venta }}">
+                    <input type="hidden" name="unidad" value="{{ producto.unidad or '' }}">
+                    <input type="hidden" name="stock_minimo" value="{{ producto.stock_minimo }}">
+
+                    <div class="mb-3">
+                        <label for="stock" class="form-label">Stock Actual</label>
+                        <input type="number" class="form-control" id="stock" name="stock" value="{{ producto.stock }}" required min="0">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="formAjustarStock" class="btn btn-primary">Guardar Cambios</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

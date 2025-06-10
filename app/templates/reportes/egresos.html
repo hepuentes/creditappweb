@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Egresos - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Reporte de Egresos</h1>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filtros de Búsqueda</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" name="fecha_inicio" 
+                               value="{{ fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" name="fecha_fin" 
+                               value="{{ fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '' }}" required>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="btn-group w-100">
+                            <button type="submit" class="btn btn-primary" name="generar">
+                                <i class="fas fa-search"></i> Generar Reporte
+                            </button>
+                            {% if egresos %}
+                            <button type="submit" class="btn btn-success" name="export">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if egresos is defined %}
+    <!-- Información de Debug -->
+<div class="alert alert-info">
+    <strong>Información:</strong> 
+    Buscando movimientos tipo "salida" desde {{ fecha_inicio.strftime('%d/%m/%Y') }} hasta {{ fecha_fin.strftime('%d/%m/%Y') }}.
+    {% if not egresos %}
+    <br><strong>Sugerencia:</strong> Verifica que las fechas incluyan el día cuando hiciste los movimientos de caja.
+    {% endif %}
+</div>
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ egresos|length }}</h3>
+                    <p class="mb-0">Total Egresos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-danger text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">${{ "{:,}".format(egresos|sum(attribute='monto')|default(0)) }}</h3>
+                    <p class="mb-0">Monto Total</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Egresos -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Egresos Detallados ({{ fecha_inicio.strftime('%d/%m/%Y') }} - {{ fecha_fin.strftime('%d/%m/%Y') }})</h5>
+<small class="text-muted">Total encontrados: {{ egresos|length }} registros</small>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Caja</th>
+                            <th>Monto</th>
+                            <th>Descripción</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if egresos %}
+                            {% for egreso in egresos|sort(attribute='fecha', reverse=True) %}
+                            <tr>
+                                <td>{{ egreso.id }}</td>
+                                <td>{{ egreso.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ egreso.caja.nombre }}</td>
+                                <td class="text-danger fw-bold">${{ "{:,}".format(egreso.monto|default(0)) }}</td>
+                                <td>{{ egreso.descripcion or 'Sin descripción' }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="5" class="text-center py-3">No se encontraron egresos en el período seleccionado.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

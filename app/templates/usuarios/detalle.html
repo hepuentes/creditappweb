@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}{{ usuario.nombre }} - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Detalle de Usuario</h1>
+        <div>
+            <a href="{{ url_for('usuarios.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información Personal</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 150px">Nombre:</th>
+                            <td>{{ usuario.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ usuario.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Rol:</th>
+                            <td>
+                                {% if usuario.rol == 'administrador' %}
+                                <span class="badge bg-primary">Administrador</span>
+                                {% elif usuario.rol == 'vendedor' %}
+                                <span class="badge bg-success">Vendedor</span>
+                                {% elif usuario.rol == 'cobrador' %}
+                                <span class="badge bg-warning text-dark">Cobrador</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                {% if usuario.activo %}
+                                <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fecha Registro:</th>
+                            <td>{{ usuario.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="card-footer">
+                    <div class="btn-group">
+                        <a href="{{ url_for('usuarios.editar', id=usuario.id) }}" class="btn btn-warning">
+                            <i class="fas fa-edit"></i> Editar
+                        </a>
+                        {% if usuario.id != 1 %}
+                        <form action="{{ url_for('usuarios.toggle_active', id=usuario.id) }}" method="POST" class="d-inline">
+                            <button type="submit" class="btn {% if usuario.activo %}btn-secondary{% else %}btn-success{% endif %}">
+                                <i class="fas {% if usuario.activo %}fa-user-slash{% else %}fa-user-check{% endif %}"></i> {% if usuario.activo %}Desactivar{% else %}Activar{% endif %}
+                            </button>
+                        </form>
+                        {% if usuario.id != current_user.id %}
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#eliminarModal">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                        {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Resumen de Actividad</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if usuario.rol == 'vendedor' or usuario.rol == 'administrador' %}
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ usuario.ventas|length }}</h3>
+                            <p>Ventas Realizadas</p>
+                        </div>
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ "${:,}".format(usuario.ventas|sum(attribute='total')|default(0)|float) }}</h3>
+                            <p>Total Vendido</p>
+                        </div>
+                        {% endif %}
+
+                        {% if usuario.rol == 'cobrador' or usuario.rol == 'administrador' %}
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ usuario.abonos|length }}</h3>
+                            <p>Abonos Recibidos</p>
+                        </div>
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ "${:,}".format(usuario.abonos|sum(attribute='monto')|default(0)|float) }}</h3>
+                            <p>Total Cobrado</p>
+                        </div>
+                        {% endif %}
+
+                        {% if usuario.comisiones %}
+                        <div class="col-md-12 text-center">
+                            <h3>{{ "${:,}".format(usuario.comisiones|sum(attribute='monto_comision')|default(0)|float) }}</h3>
+                            <p>Total Comisiones</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if usuario.rol == 'vendedor' or usuario.rol == 'administrador' %}
+    <!-- Ventas Recientes -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Ventas Recientes</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Tipo</th>
+                            <th>Total</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if usuario.ventas %}
+                            {% set ventas_recientes = usuario.ventas|sort(attribute='fecha', reverse=True) %}
+{% for venta in ventas_recientes[:5] %}
+                            <tr>
+                                <td>{{ venta.id }}</td>
+                                <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('clientes.detalle', id=venta.cliente_id) }}">
+                                        {{ venta.cliente.nombre }}
+                                    </a>
+                                </td>
+                                <td>
+                                    {% if venta.tipo == 'contado' %}
+                                    <span class="badge bg-success">Contado</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Crédito</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "${:,.2f}".format(venta.total) }}</td>
+                                <td>
+                                    {% if venta.estado == 'pagado' %}
+                                    <span class="badge bg-success">Pagado</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('ventas.detalle', id=venta.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="7" class="text-center py-3">Este usuario no ha realizado ventas.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            {% if usuario.ventas|length > 5 %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('ventas.index') }}" class="btn btn-link">Ver todas las ventas</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if usuario.rol == 'cobrador' or usuario.rol == 'administrador' %}
+    <!-- Abonos Recientes -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Abonos Recientes</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Venta</th>
+                            <th>Monto</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if usuario.abonos %}
+                            {% for abono in usuario.abonos|sort(attribute='fecha', reverse=True)[:5] %}
+                            <tr>
+                                <td>{{ abono.id }}</td>
+                                <td>{{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('clientes.detalle', id=abono.venta.cliente_id) }}">
+                                        {{ abono.venta.cliente.nombre }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('ventas.detalle', id=abono.venta_id) }}">
+                                        #{{ abono.venta_id }}
+                                    </a>
+                                </td>
+                                <td>{{ "${:,.2f}".format(abono.monto) }}</td>
+                                <td>
+                                    <a href="{{ url_for('abonos.detalle', id=abono.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-3">Este usuario no ha registrado abonos.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+            {% if usuario.abonos|length > 5 %}
+            <div class="card-footer text-center">
+                <a href="{{ url_for('abonos.index') }}" class="btn btn-link">Ver todos los abonos</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Modal de Eliminación -->
+{% if usuario.id != 1 and usuario.id != current_user.id %}
+<div class="modal fade" id="eliminarModal" tabindex="-1" aria-labelledby="eliminarModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="eliminarModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de eliminar el usuario <strong>{{ usuario.nombre }}</strong>?</p>
+                <p class="text-danger"><i class="fas fa-exclamation-triangle"></i> Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('usuarios.eliminar', id=usuario.id) }}" method="POST">
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

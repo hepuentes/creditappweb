@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Abono - CreditApp{% endblock %}
+
+{% block content %}
+    <div class="container-fluid">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Registrar Abono</h1>
+            <div>
+                <a href="{{ url_for('abonos.index') }}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-8 mx-auto">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">Datos del Abono</h5>
+                    </div>
+                    <div class="card-body">
+                        <form method="POST" id="abonoForm">
+                            {{ form.hidden_tag() }}
+
+                            <!-- Cliente -->
+                            <div class="mb-3">
+                                <label class="form-label">Cliente *</label>
+                                <div class="input-group mb-2">
+                                    <select class="form-select" id="cliente_select" name="cliente_id" required>
+                                        {% for id, nombre in form.cliente_id.choices %}
+                                            <option value="{{ id }}" {% if form.cliente_id.data == id %}selected{% endif %}>{{ nombre }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="input-group">
+                                    <input type="text" class="form-control" id="buscar-cliente" placeholder="Buscar cliente...">
+                                    <button type="button" class="btn btn-outline-secondary" id="btn-buscar-cliente">
+                                        <i class="fas fa-search"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Campo oculto para tipo_credito -->
+                            <input type="hidden" name="tipo_credito" value="venta" id="tipo_credito">
+
+                            <!-- Venta a abonar -->
+                            <div class="mb-3">
+                                <label class="form-label">Venta/Crédito *</label>
+                                <select class="form-select" id="venta_select" name="venta_id" required>
+                                    {% for id, texto in form.venta_id.choices %}
+                                        <option value="{{ id }}" {% if form.venta_id.data == id %}selected{% endif %}>{{ texto }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div id="saldo_info" class="form-text"></div>
+                            </div>
+
+                            <!-- Monto del abono -->
+                            <div class="mb-3">
+                                <label class="form-label">Monto *</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">$</span>
+                                    <input
+                                        type="text"
+                                        class="form-control"
+                                        id="monto_input"
+                                        name="monto"
+                                        required
+                                        value="{{ form.monto.data or '' }}"
+                                        placeholder="Ingrese el monto (ej: 50000)"
+                                    >
+                                </div>
+                                <small class="form-text text-muted">
+                                    Ingrese el monto sin puntos ni comas para valores grandes.
+                                </small>
+                            </div>
+
+                            <!-- Caja -->
+                            <div class="mb-3">
+                                <label class="form-label">Caja *</label>
+                                <select class="form-select" id="caja_id" name="caja_id" required>
+                                    {% for id, nombre in form.caja_id.choices %}
+                                        <option value="{{ id }}" {% if form.caja_id.data == id %}selected{% endif %}>{{ nombre }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <!-- Notas -->
+                            <div class="mb-3">
+                                <label class="form-label">Notas (opcional)</label>
+                                <textarea class="form-control" id="notas" name="notas" rows="3">{{ form.notas.data or '' }}</textarea>
+                            </div>
+
+                            <!-- Botones de acción -->
+                            <div class="d-flex justify-content-end mt-4">
+                                <a href="{{ url_for('abonos.index') }}" class="btn btn-secondary me-2">Cancelar</a>
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-save"></i> Registrar Abono
+                                </button>
+                            </div>
+
+                            <!-- JavaScript mejorado para procesar el monto -->
+                            <script>
+document.addEventListener('DOMContentLoaded', function() {
+    const buscarClienteInput = document.getElementById('buscar-cliente');
+    const clienteSelect = document.getElementById('cliente_select');
+    const ventaSelect = document.getElementById('venta_select');
+    const montoInput = document.getElementById('monto_input');
+    const saldoInfo = document.getElementById('saldo_info');
+    const btnBuscarCliente = document.getElementById('btn-buscar-cliente');
+    const abonoForm = document.getElementById('abonoForm');
+
+    function actualizarSaldoInfo() {
+        if (ventaSelect.selectedIndex > 0) {
+            const selectedText = ventaSelect.options[ventaSelect.selectedIndex].text;
+            const saldoMatch = selectedText.match(/Saldo: \$([\d,\.]+)/);
+            if (saldoMatch && saldoMatch[1]) {
+                // Eliminar comas y puntos para tener un número limpio
+                const saldoPendienteStr = saldoMatch[1].replace(/,/g, '').replace(/\./g, '');
+                const saldoPendiente = parseFloat(saldoPendienteStr);
+                saldoInfo.textContent = `Saldo pendiente: $${saldoPendiente.toLocaleString('es')}`;
+                
+                // Sugerencia de monto completo si el campo está vacío
+                if (!montoInput.value) {
+                    montoInput.value = saldoPendienteStr;
+                }
+            } else {
+                saldoInfo.textContent = '';
+            }
+        } else {
+            saldoInfo.textContent = '';
+        }
+    }
+
+    if (clienteSelect) {
+        clienteSelect.addEventListener('change', function() {
+            const clienteId = this.value;
+            if (!clienteId || clienteId < 0) return;
+            
+            ventaSelect.innerHTML = '<option value="" selected>Cargando ventas...</option>';
+            saldoInfo.textContent = '';
+            
+            fetch(`/abonos/cargar-ventas/${clienteId}`)
+                .then(res => res.json())
+                .then(ventas => {
+                    ventaSelect.innerHTML = '';
+                    
+                    if (ventas.length === 0) {
+                        ventaSelect.innerHTML = '<option value="" selected>No hay ventas pendientes</option>';
+                        return;
+                    }
+                    
+                    // Verificar si es un mensaje de error o sin resultados
+                    if (ventas.length === 1 && ventas[0].id === -1) {
+                        ventaSelect.innerHTML = `<option value="" selected>${ventas[0].texto}</option>`;
+                        return;
+                    }
+                    
+                    ventaSelect.innerHTML = '<option value="" selected>Seleccione una venta</option>';
+                    ventas.forEach(venta => {
+                        const option = document.createElement('option');
+                        option.value = venta.id;
+                        option.textContent = venta.texto;
+                        ventaSelect.appendChild(option);
+                    });
+                    
+                    // Si hay un venta_id en la URL, seleccionarlo
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const ventaId = urlParams.get('venta_id');
+                    if (ventaId) {
+                        const option = ventaSelect.querySelector(`option[value="${ventaId}"]`);
+                        if (option) {
+                            option.selected = true;
+                            actualizarSaldoInfo();
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('Error al cargar ventas:', err);
+                    ventaSelect.innerHTML = '<option value="" selected>Error al cargar ventas</option>';
+                });
+        });
+    }
+
+    if (buscarClienteInput && clienteSelect) {
+        function filtrarClientes() {
+            const busqueda = buscarClienteInput.value.toLowerCase().trim();
+            for (let i = 0; i < clienteSelect.options.length; i++) {
+                const option = clienteSelect.options[i];
+                if (option.value === '' || option.value < 0) continue;
+                option.style.display = option.text.toLowerCase().includes(busqueda) ? '' : 'none';
+            }
+        }
+        
+        buscarClienteInput.addEventListener('input', filtrarClientes);
+        if (btnBuscarCliente) {
+            btnBuscarCliente.addEventListener('click', filtrarClientes);
+        }
+    }
+
+    if (ventaSelect) {
+        ventaSelect.addEventListener('change', actualizarSaldoInfo);
+    }
+
+    // Mejorado: Permitir SOLO valores enteros, sin decimales
+    if (montoInput) {
+        montoInput.addEventListener('input', function() {
+            // Solo permitir dígitos (números enteros)
+            let value = this.value;
+            
+            // Eliminar cualquier carácter que no sea dígito
+            value = value.replace(/[^\d]/g, '');
+            
+            // Actualizar el valor limpio
+            this.value = value;
+            
+            // Validar contra saldo pendiente
+            if (!saldoInfo.textContent) return;
+            
+            // Obtener el saldo pendiente del texto informativo
+            const match = saldoInfo.textContent.match(/\$([\d,\.]+)/);
+            if (match && match[1]) {
+                // Limpiar el saldo para comparación - eliminar comas y puntos
+                const saldoStr = match[1].replace(/,/g, '').replace(/\./g, '');
+                const saldo = parseInt(saldoStr, 10);
+                const monto = parseInt(this.value, 10);
+                
+                // Solo validar si tenemos un monto válido
+                if (!isNaN(monto) && monto > 0) {
+                    if (monto > saldo) {
+                        // Advertir sin cambiar automáticamente
+                        saldoInfo.innerHTML = `<span class="text-danger">El monto excede el saldo pendiente ($${saldo.toLocaleString('es')})</span>`;
+                    } else {
+                        // Mostrar mensaje normal
+                        saldoInfo.textContent = `Saldo pendiente: $${saldo.toLocaleString('es')}`;
+                    }
+                }
+            }
+        });
+    }
+    
+    // Agregar validación antes de enviar el formulario
+    if (abonoForm) {
+    abonoForm.addEventListener('submit', function(e) {
+        // Verificar si se ha seleccionado una venta
+        if (ventaSelect.value === "" || parseInt(ventaSelect.value) <= 0) {
+            e.preventDefault();
+            alert("Por favor seleccione una venta válida antes de continuar.");
+            return false;
+        }
+        
+        // Verificar que el monto sea válido
+        const monto = montoInput.value.trim();
+        if (!monto || monto === "0") {
+            e.preventDefault();
+            alert("Por favor ingrese un monto válido.");
+            return false;
+        }
+        
+        // Verificar que el monto no exceda el saldo pendiente
+        const saldoElement = document.querySelector('#saldo_info span.text-danger');
+        if (saldoElement) {
+            e.preventDefault();
+            alert("El monto no puede ser mayor al saldo pendiente.");
+            return false;
+        }
+        
+        // Todo correcto, enviar el formulario
+        return true;
+    });
+}
+
+    // Inicializar datos al cargar
+    actualizarSaldoInfo();
+    if (clienteSelect && clienteSelect.value > 0) {
+        clienteSelect.dispatchEvent(new Event('change'));
+    }
+});
+</script>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}

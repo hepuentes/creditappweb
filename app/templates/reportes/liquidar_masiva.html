@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Liquidación Masiva de Comisiones - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Liquidación Masiva de Comisiones</h1>
+        <a href="{{ url_for('reportes.comisiones') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Comisiones
+        </a>
+    </div>
+
+    <!-- Formulario de Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Seleccionar Período y Usuario</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" name="fecha_inicio" 
+                               value="{{ fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '' }}" required>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" name="fecha_fin" 
+                               value="{{ fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Usuario</label>
+                        <select class="form-select" name="usuario_id">
+                            <option value="0">Todos los usuarios</option>
+                            {% if usuarios %}
+                                {% for usuario in usuarios %}
+                                <option value="{{ usuario.id }}">{{ usuario.nombre }} ({{ usuario.rol }})</option>
+                                {% endfor %}
+                            {% endif %}
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100" name="consultar">
+                            <i class="fas fa-search"></i> Consultar
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if resumen_usuarios %}
+    <!-- Resumen de Liquidación -->
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Resumen de Liquidación</h5>
+            <div>
+                <strong>Total General: ${{ "{:,}".format(total_general) }}</strong>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Empleado</th>
+                            <th>Rol</th>
+                            <th>Cantidad Comisiones</th>
+                            <th>Total a Pagar</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for usuario_id, datos in resumen_usuarios.items() %}
+                        <tr>
+                            <td>{{ datos.usuario.nombre }}</td>
+                            <td>
+                                {% if datos.usuario.rol == 'administrador' %}
+                                <span class="badge bg-primary">Administrador</span>
+                                {% elif datos.usuario.rol == 'vendedor' %}
+                                <span class="badge bg-success">Vendedor</span>
+                                {% elif datos.usuario.rol == 'cobrador' %}
+                                <span class="badge bg-warning text-dark">Cobrador</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ datos.cantidad }}</td>
+                            <td class="fw-bold text-success">${{ "{:,}".format(datos.total_comision) }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-success">
+                        <tr>
+                            <th colspan="3" class="text-end">TOTAL GENERAL:</th>
+                            <th class="text-success">${{ "{:,}".format(total_general) }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer">
+            <form method="POST" class="d-flex gap-2">
+                <input type="hidden" name="fecha_inicio" value="{{ fecha_inicio.strftime('%Y-%m-%d') }}">
+                <input type="hidden" name="fecha_fin" value="{{ fecha_fin.strftime('%Y-%m-%d') }}">
+                
+                <button type="submit" name="exportar" class="btn btn-info">
+                    <i class="fas fa-file-excel"></i> Exportar Excel para Nómina
+                </button>
+                
+                <button type="submit" name="liquidar" class="btn btn-success" 
+                        onclick="return confirm('¿Confirma liquidar TODAS estas comisiones? Esta acción no se puede deshacer.')">
+                    <i class="fas fa-check-double"></i> Liquidar Todas (Marcar como Pagadas)
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

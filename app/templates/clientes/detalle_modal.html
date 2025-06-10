@@ -1,0 +1,72 @@
+<div class="cliente-detail-card">
+    <div class="cliente-header">
+        <h3>{{ cliente.nombre }}</h3>
+        <span class="badge bg-success">Activo</span>
+    </div>
+
+    <div class="cliente-info">
+        <p><strong>CC:</strong> {{ cliente.cedula }}</p>
+
+        <div class="info-section">
+            <h5>Información de contacto</h5>
+            <p><i class="fas fa-phone"></i> {{ cliente.telefono or 'N/A' }}</p>
+            <p><i class="fas fa-envelope"></i> {{ cliente.email or 'N/A' }}</p>
+            <p><i class="fas fa-map-marker-alt"></i> {{ cliente.direccion or 'N/A' }}</p>
+        </div>
+
+        <div class="info-section">
+            <h5>Información financiera</h5>
+            <p><strong>Saldo pendiente:</strong> <span class="text-danger">${{ '{:,.0f}'.format(cliente.saldo_pendiente()) }}</span></p>
+        </div>
+    </div>
+
+    <div class="action-buttons">
+    <a href="{{ url_for('ventas.crear', cliente_id=cliente.id) }}" class="btn btn-primary">
+        <i class="fas fa-cart-plus"></i> Nueva venta
+    </a>
+    
+    {% if cliente.saldo_pendiente() > 0 %}
+    <a href="{{ url_for('abonos.crear', cliente_id=cliente.id) }}" class="btn btn-success">
+        <i class="fas fa-money-bill-wave"></i> Registrar abono
+    </a>
+    {% endif %}
+    
+    <a href="{{ url_for('clientes.detalle', id=cliente.id) }}" class="btn btn-info">
+        <i class="fas fa-eye"></i> Ver historial
+    </a>
+    
+    {% if current_user.is_admin() %}
+    <a href="{{ url_for('clientes.editar', id=cliente.id) }}" class="btn btn-warning">
+        <i class="fas fa-edit"></i> Editar
+    </a>
+    {% endif %}
+</div>
+</div>
+
+<style>
+    .cliente-detail-card {
+        padding: 20px;
+    }
+
+    .cliente-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .cliente-info p {
+        margin-bottom: 10px;
+    }
+
+    .info-section {
+        margin-bottom: 20px;
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+    }
+</style>

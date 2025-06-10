@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Ventas - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Reporte de Ventas</h1>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filtros de Búsqueda</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Inicio</label>
+                        <input type="date" class="form-control" name="fecha_inicio" 
+                               value="{{ fecha_inicio.strftime('%Y-%m-%d') if fecha_inicio else '' }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Fecha Fin</label>
+                        <input type="date" class="form-control" name="fecha_fin" 
+                               value="{{ fecha_fin.strftime('%Y-%m-%d') if fecha_fin else '' }}" required>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <div class="btn-group w-100">
+                            <button type="submit" class="btn btn-primary" name="generar">
+                                <i class="fas fa-search"></i> Generar Reporte
+                            </button>
+                            {% if ventas %}
+                            <button type="submit" class="btn btn-success" name="export">
+                                <i class="fas fa-file-excel"></i> Exportar Excel
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if ventas is defined %}
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ ventas|length }}</h3>
+                    <p class="mb-0">Total Ventas</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">${{ "{:,}".format(ventas|sum(attribute='total')|default(0)) }}</h3>
+                    <p class="mb-0">Monto Total</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-dark h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ ventas|selectattr('tipo', 'equalto', 'credito')|list|length|default(0) }}</h3>
+                    <p class="mb-0">Ventas a Crédito</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ ventas|selectattr('tipo', 'equalto', 'contado')|list|length|default(0) }}</h3>
+                    <p class="mb-0">Ventas de Contado</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Ventas -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Ventas Detalladas ({{ fecha_inicio.strftime('%d/%m/%Y') }} - {{ fecha_fin.strftime('%d/%m/%Y') }})</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Vendedor</th>
+                            <th>Tipo</th>
+                            <th>Total</th>
+                            <th>Saldo Pendiente</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if ventas %}
+                            {% for venta in ventas|sort(attribute='fecha', reverse=True) %}
+                            <tr>
+                                <td>{{ venta.id }}</td>
+                                <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>
+                                    <a href="{{ url_for('clientes.detalle', id=venta.cliente_id) }}">
+                                        {{ venta.cliente.nombre }}
+                                    </a>
+                                </td>
+                                <td>{{ venta.vendedor.nombre }}</td>
+                                <td>
+                                    {% if venta.tipo == 'contado' %}
+                                    <span class="badge bg-success">Contado</span>
+                                    {% else %}
+                                    <span class="badge bg-warning text-dark">Crédito</span>
+                                    {% endif %}
+                                </td>
+                                <td>${{ "{:,}".format(venta.total|default(0)) }}</td>
+                                <td>
+                                    {% if venta.tipo == 'credito' %}
+                                    ${{ "{:,}".format(venta.saldo_pendiente|default(0)) }}
+                                    {% else %}
+                                    -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if venta.estado == 'pagado' %}
+                                    <span class="badge bg-success">Pagado</span>
+                                    {% else %}
+                                    <span class="badge bg-danger">Pendiente</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{{ url_for('ventas.detalle', id=venta.id) }}" class="btn btn-sm btn-info">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="9" class="text-center py-3">No se encontraron ventas en el período seleccionado.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

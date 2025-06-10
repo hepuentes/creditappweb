@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Mi Perfil - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Mi Perfil</h1>
+        <div>
+            <a href="{{ url_for('usuarios.editar_mi_perfil') }}" class="btn btn-primary">
+                <i class="fas fa-edit"></i> Editar Perfil
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Información Personal</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <th style="width: 150px">Nombre:</th>
+                            <td>{{ usuario.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <th>Email:</th>
+                            <td>{{ usuario.email }}</td>
+                        </tr>
+                        <tr>
+                            <th>Rol:</th>
+                            <td>
+                                {% if usuario.rol == 'administrador' %}
+                                <span class="badge bg-primary">Administrador</span>
+                                {% elif usuario.rol == 'vendedor' %}
+                                <span class="badge bg-success">Vendedor</span>
+                                {% elif usuario.rol == 'cobrador' %}
+                                <span class="badge bg-warning text-dark">Cobrador</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Estado:</th>
+                            <td>
+                                {% if usuario.activo %}
+                                <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <th>Fecha Registro:</th>
+                            <td>{{ usuario.fecha_registro.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Resumen de Actividad</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if usuario.rol == 'vendedor' or usuario.rol == 'administrador' %}
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ usuario.ventas|length }}</h3>
+                            <p>Ventas Realizadas</p>
+                        </div>
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ "${:,.0f}".format(usuario.ventas|sum(attribute='total')|default(0)|float) }}</h3>
+                            <p>Total Vendido</p>
+                        </div>
+                        {% endif %}
+
+                        {% if usuario.rol == 'cobrador' or usuario.rol == 'administrador' %}
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ usuario.abonos|length }}</h3>
+                            <p>Abonos Recibidos</p>
+                        </div>
+                        <div class="col-md-6 text-center mb-3">
+                            <h3>{{ "${:,.0f}".format(usuario.abonos|sum(attribute='monto')|default(0)|float) }}</h3>
+                            <p>Total Cobrado</p>
+                        </div>
+                        {% endif %}
+
+                        {% if usuario.comisiones %}
+                        <div class="col-md-12 text-center">
+                            <h3>{{ "${:,.0f}".format(usuario.comisiones|sum(attribute='monto_comision')|default(0)|float) }}</h3>
+                            <p>Total Comisiones</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

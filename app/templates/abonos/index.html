@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block title %}Abonos - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Abonos</h1>
+
+        <a href="{{ url_for('abonos.crear') }}" class="btn btn-success">
+            <i class="fas fa-plus"></i> Nuevo Abono
+        </a>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('abonos.index') }}" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Cliente</label>
+                    <input type="text" class="form-control" name="busqueda" placeholder="Buscar por cliente..."
+                        value="{{ busqueda|default('') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" class="form-control" name="desde" value="{{ desde|default('') }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" class="form-control" name="hasta" value="{{ hasta|default('') }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen de Abonos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card bg-light h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ abonos|length }}</h3>
+                    <p class="mb-0">Total Abonos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card bg-success text-white h-100">
+                <div class="card-body text-center">
+                    <h3 class="mb-0">{{ "${:,}".format(total_abonos|default(0)) }}</h3>
+                    <p class="mb-0">Monto Total</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listado de abonos -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Listado de Abonos</h5>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Fecha</th>
+                            <th>Cliente</th>
+                            <th>Factura</th>
+                            <th>Monto</th>
+                            <th>Cobrador</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if abonos %}
+                        {% for abono in abonos %}
+                        <tr>
+                            <td>{{ abono.id }}</td>
+                            <td>{{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', id=abono.venta.cliente_id) }}">
+                                    {{ abono.venta.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('ventas.detalle', id=abono.venta_id) }}">
+                                    #{{ abono.venta_id }}
+                                </a>
+                            </td>
+                            <td>{{ "${:,}".format(abono.monto|default(0)) }}</td>
+                            <td>{{ abono.cobrador.nombre }}</td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('abonos.detalle', id=abono.id) }}" class="btn btn-sm btn-info"
+                                        data-bs-toggle="tooltip" title="Ver Detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    <a href="{{ url_for('abonos.pdf', id=abono.id) }}" target="_blank"
+                                        class="btn btn-sm btn-secondary" data-bs-toggle="tooltip" title="Ver PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    {% if current_user.is_admin() %}
+                                    <a href="{{ url_for('abonos.editar', id=abono.id) }}" class="btn btn-sm btn-warning"
+                                        data-bs-toggle="tooltip" title="Editar Abono">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <button type="button" class="btn btn-sm btn-danger" data-bs-toggle="modal"
+                                        data-bs-target="#eliminarModal{{ abono.id }}" title="Eliminar Abono">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center py-3">No se encontraron abonos.</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modales de Eliminación -->
+{% if current_user.is_admin() and abonos %}
+{% for abono in abonos %}
+<div class="modal fade" id="eliminarModal{{ abono.id }}" tabindex="-1"
+    aria-labelledby="eliminarModalLabel{{ abono.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="eliminarModalLabel{{ abono.id }}">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>¡Atención!</strong> Esta acción no se puede deshacer.
+                </div>
+
+                <p>¿Está seguro de eliminar el siguiente abono?</p>
+
+                <div class="card">
+                    <div class="card-body">
+                        <p><strong>ID:</strong> {{ abono.id }}</p>
+                        <p><strong>Cliente:</strong> {{ abono.venta.cliente.nombre }}</p>
+                        <p><strong>Venta:</strong> #{{ abono.venta_id }}</p>
+                        <p><strong>Monto:</strong> ${{ "{:,}".format(abono.monto) }}</p>
+                        <p><strong>Fecha:</strong> {{ abono.fecha.strftime('%d/%m/%Y %H:%M') }}</p>
+                        <p><strong>Cobrador:</strong> {{ abono.cobrador.nombre }}</p>
+                    </div>
+                </div>
+
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    Al eliminar este abono:
+                    <ul class="mb-0 mt-2">
+                        <li>Se restaurará el saldo pendiente de la venta #{{ abono.venta_id }}</li>
+                        <li>Se revertirán los movimientos de caja asociados</li>
+                        <li>Se eliminarán las comisiones generadas</li>
+                        <li>El estado de la venta cambiará a "pendiente" si es necesario</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form action="{{ url_for('abonos.eliminar', id=abono.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Eliminar Abono
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

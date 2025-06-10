@@ -1,0 +1,25 @@
+{% extends "base_no_nav.html" %}
+
+{% block title %}Error - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card">
+        <div class="card-header bg-danger text-white">
+            <h4 class="mb-0">Error en la aplicación</h4>
+        </div>
+        <div class="card-body">
+            <p>{{ mensaje }}</p>
+            {% if error %}
+            <div class="alert alert-warning">
+                <strong>Detalles técnicos:</strong> {{ error }}
+            </div>
+            {% endif %}
+            <div class="mt-4">
+                <a href="/" class="btn btn-primary">Volver al inicio</a>
+                <a href="/auth/login" class="btn btn-secondary">Ir a login</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

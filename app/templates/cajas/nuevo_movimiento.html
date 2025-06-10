@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+
+{% block title %}Nuevo Movimiento - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Nuevo Movimiento en Caja: {{ caja.nombre }}</h1>
+        <div>
+            <a href="{{ url_for('cajas.movimientos', id=caja.id) }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Datos del Movimiento</h5>
+                </div>
+                <div class="card-body">
+                    <!-- Información actual de la caja -->
+                    <div class="alert alert-info mb-4">
+                        <p class="mb-0"><strong>Caja:</strong> {{ caja.nombre }} ({{ caja.tipo }})</p>
+                        <p class="mb-0"><strong>Saldo Actual:</strong> {{ "${:,}".format(caja.saldo_actual) }}</p>
+                    </div>
+
+                    <form method="POST">
+                        {{ form.hidden_tag() }}
+
+                        <div class="mb-3">
+                            {{ form.tipo.label(class="form-label") }}
+                            {% if form.tipo.errors %}
+                                {{ form.tipo(class="form-select is-invalid", id="tipo_select") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.tipo.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.tipo(class="form-select", id="tipo_select") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.monto.label(class="form-label") }}
+                            <div class="input-group">
+                                <span class="input-group-text">$</span>
+                                {% if form.monto.errors %}
+                                    {{ form.monto(class="form-control is-invalid", id="monto_input") }}
+                                    <div class="invalid-feedback">
+                                        {% for error in form.monto.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    {{ form.monto(class="form-control", id="monto_input") }}
+                                {% endif %}
+                            </div>
+                            {% if form.tipo.data == 'salida' or form.tipo.data == 'transferencia' %}
+                            <div class="form-text text-danger">El monto no puede ser mayor al saldo actual ({{ "${:,}".format(caja.saldo_actual) }}).</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            {{ form.concepto.label(class="form-label") }}
+                            {% if form.concepto.errors %}
+                                {{ form.concepto(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.concepto.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.concepto(class="form-control", placeholder="Describa el motivo de este movimiento...") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3" id="caja_destino_container" {% if form.tipo.data != 'transferencia' %}style="display: none;"{% endif %}>
+                            {{ form.caja_destino_id.label(class="form-label") }}
+                            {% if form.caja_destino_id.errors %}
+                                {{ form.caja_destino_id(class="form-select is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.caja_destino_id.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                {{ form.caja_destino_id(class="form-select") }}
+                            {% endif %}
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-4">
+                            <a href="{{ url_for('cajas.movimientos', id=caja.id) }}" class="btn btn-secondary me-2">Cancelar</a>
+                            {{ form.submit(class="btn btn-primary") }}
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoSelect = document.getElementById('tipo_select');
+        const montoInput = document.getElementById('monto_input');
+        const cajaDestinoContainer = document.getElementById('caja_destino_container');
+        const saldoActual = {{ caja.saldo_actual }};
+
+        // Mostrar/ocultar el selector de caja destino según el tipo
+        tipoSelect.addEventListener('change', function() {
+            if (this.value === 'transferencia') {
+                cajaDestinoContainer.style.display = 'block';
+            } else {
+                cajaDestinoContainer.style.display = 'none';
+            }
+        });
+
+        // Validar que el monto no exceda el saldo actual (para salidas y transferencias)
+        montoInput.addEventListener('input', function() {
+            const monto = parseFloat(this.value) || 0;
+            const tipo = tipoSelect.value;
+
+            if ((tipo === 'salida' || tipo === 'transferencia') && monto > saldoActual) {
+                this.value = saldoActual;
+                alert(`El monto no puede ser mayor al saldo actual (${saldoActual.toLocaleString('es-CO', {style: 'currency', currency: 'COP'})})`);
+            }
+        });
+    });
+</script>
+{% endblock %}

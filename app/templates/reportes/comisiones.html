@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Comisiones - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Reporte de Comisiones</h1>
+    </div>
+    
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="reporteForm">
+                {{ form.hidden_tag() }}
+                
+                <div class="row mb-3">
+                    {% if current_user.is_vendedor() and not current_user.is_admin() %}
+                    <input type="hidden" name="usuario_id" value="{{ current_user.id }}">
+                    {% else %}
+                    <div class="col-md-3">
+                        {{ form.usuario_id.label(class="form-label") }}
+                        <select name="usuario_id" id="usuario_id" class="form-select {% if form.usuario_id.errors %}is-invalid{% endif %}">
+                            {% for id, nombre in form.usuario_id.choices %}
+                                <option value="{{ id }}" {% if form.usuario_id.data == id %}selected{% endif %}>{{ nombre }}</option>
+                            {% endfor %}
+                        </select>
+                        {% if form.usuario_id.errors %}
+                            <div class="invalid-feedback">
+                                {% for error in form.usuario_id.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                    
+                    <div class="col-md-3">
+                        {{ form.fecha_inicio.label(class="form-label") }}
+                        {% if form.fecha_inicio.errors %}
+                            {{ form.fecha_inicio(class="form-control is-invalid", type="date") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.fecha_inicio.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.fecha_inicio(class="form-control", type="date") }}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-3">
+                        {{ form.fecha_fin.label(class="form-label") }}
+                        {% if form.fecha_fin.errors %}
+                            {{ form.fecha_fin(class="form-control is-invalid", type="date") }}
+                            <div class="invalid-feedback">
+                                {% for error in form.fecha_fin.errors %}
+                                    {{ error }}
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            {{ form.fecha_fin(class="form-control", type="date") }}
+                        {% endif %}
+                    </div>
+                    
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100" name="generar">
+                            <i class="fas fa-search"></i> Generar Reporte
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    {% if comisiones_por_usuario is defined %}
+    <!-- Resultados del Reporte -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Reporte de Comisiones ({{ fecha_inicio.strftime('%d/%m/%Y') if fecha_inicio else '' }} - {{ fecha_fin.strftime('%d/%m/%Y') if fecha_fin else '' }})</h5>
+            <div>
+                {% if current_user.is_admin() %}
+                <button type="button" class="btn btn-success me-2" id="marcarTodasPagadas" disabled>
+                    <i class="fas fa-check-double"></i> Marcar Seleccionadas como Pagadas
+                </button>
+                {% endif %}
+                {% if current_user.is_admin() %}
+<a href="{{ url_for('reportes.liquidar_masiva') }}" class="btn btn-warning me-2">
+    <i class="fas fa-hand-holding-usd"></i> Liquidación Masiva
+</a>
+{% endif %}
+<button type="submit" form="reporteForm" class="btn btn-success" name="export">
+    <i class="fas fa-file-excel"></i> Exportar Excel
+</button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            {% if current_user.is_admin() %}
+                            <th style="width: 40px;">
+                                <input type="checkbox" id="selectAll" class="form-check-input">
+                            </th>
+                            {% endif %}
+                            <th>Usuario</th>
+                            <th>Rol</th>
+                            <th>Total Base</th>
+                            <th>Total Comisión</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if comisiones_por_usuario %}
+                            {% for usuario_id, datos in comisiones_por_usuario.items() %}
+                            <tr>
+                                {% if current_user.is_admin() %}
+                                <td></td>
+                                {% endif %}
+                                <td>{{ datos.usuario.nombre }}</td>
+                                <td>
+                                    {% if datos.usuario.rol == 'administrador' %}
+                                    <span class="badge bg-primary">Administrador</span>
+                                    {% elif datos.usuario.rol == 'vendedor' %}
+                                    <span class="badge bg-success">Vendedor</span>
+                                    {% elif datos.usuario.rol == 'cobrador' %}
+                                    <span class="badge bg-warning text-dark">Cobrador</span>
+                                    {% endif %}
+                                </td>
+                                <td>{{ "${:,}".format(datos.total_base) }}</td>
+                                <td>{{ "${:,}".format(datos.total_comision) }}</td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#comisionesDetalle{{ usuario_id }}">
+                                        <i class="fas fa-plus"></i> Ver Detalle
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="collapse" id="comisionesDetalle{{ usuario_id }}">
+                                <td colspan="{% if current_user.is_admin() %}6{% else %}5{% endif %}" class="p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered mb-0">
+                                            <thead class="table-secondary">
+                                                <tr>
+                                                    {% if current_user.is_admin() %}
+                                                    <th style="width: 40px;">
+                                                        <input type="checkbox" class="form-check-input selectAllUser" data-user="{{ usuario_id }}">
+                                                    </th>
+                                                    {% endif %}
+                                                    <th>Fecha</th>
+                                                    <th>Monto Base</th>
+                                                    <th>Porcentaje</th>
+                                                    <th>Monto Comisión</th>
+                                                    <th>Periodo</th>
+                                                    <th>Origen</th>
+                                                    <th>Pagado</th>
+                                                    {% if current_user.is_admin() %}
+                                                    <th>Acciones</th>
+                                                    {% endif %}
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for comision in datos.comisiones %}
+                                                <tr>
+                                                    {% if current_user.is_admin() %}
+                                                    <td>
+                                                        {% if not comision.pagado %}
+                                                        <input type="checkbox" class="form-check-input comision-checkbox" value="{{ comision.id }}" data-user="{{ usuario_id }}">
+                                                        {% endif %}
+                                                    </td>
+                                                    {% endif %}
+                                                    <td>{{ comision.fecha_generacion.strftime('%d/%m/%Y %H:%M') if comision.fecha_generacion else 'N/A' }}</td>
+                                                    <td>{{ "${:,}".format(comision.monto_base) }}</td>
+                                                    <td>{{ comision.porcentaje }}%</td>
+                                                    <td>{{ "${:,}".format(comision.monto_comision) }}</td>
+                                                    <td>{{ comision.periodo }}</td>
+                                                    <td>
+                                                        {% if comision.venta_id and comision.venta %}
+                                                            <a href="{{ url_for('ventas.detalle', id=comision.venta_id) }}">
+                                                                Venta #{{ comision.venta_id }} - {{ comision.venta.cliente.nombre }}
+                                                            </a>
+                                                        {% elif comision.abono_id and comision.abono %}
+                                                            <a href="{{ url_for('abonos.detalle', id=comision.abono_id) }}">
+                                                                Abono #{{ comision.abono_id }} - Venta #{{ comision.abono.venta_id }}
+                                                            </a>
+                                                        {% else %}
+                                                            N/A
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if comision.pagado %}
+                                                        <span class="badge bg-success">Sí</span>
+                                                        {% else %}
+                                                        <span class="badge bg-danger">No</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    {% if current_user.is_admin() %}
+                                                    <td>
+                                                        {% if not comision.pagado %}
+                                                        <button type="button" class="btn btn-sm btn-success marcar-individual" data-id="{{ comision.id }}" title="Marcar como pagado">
+                                                            <i class="fas fa-check"></i>
+                                                        </button>
+                                                        {% endif %}
+                                                    </td>
+                                                    {% endif %}
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        {% else %}
+                            <tr>
+                                <td colspan="{% if current_user.is_admin() %}6{% else %}5{% endif %}" class="text-center py-3">No se encontraron comisiones en el período seleccionado.</td>
+                            </tr>
+                        {% endif %}
+                    </tbody>
+                    <tfoot class="table-light">
+                        <tr>
+                            {% if current_user.is_admin() %}
+                            <th></th>
+                            {% endif %}
+                            <th colspan="2" class="text-end">Totales:</th>
+                            <th>{{ "${:,}".format(total_base) }}</th>
+                            <th>{{ "${:,}".format(total_comision) }}</th>
+                            <th></th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const marcarTodasBtn = document.getElementById('marcarTodasPagadas');
+    const comisionCheckboxes = document.querySelectorAll('.comision-checkbox');
+    
+    // Función para actualizar estado del botón
+    function updateButtonState() {
+        const checkedBoxes = document.querySelectorAll('.comision-checkbox:checked');
+        if (marcarTodasBtn) {
+            marcarTodasBtn.disabled = checkedBoxes.length === 0;
+        }
+    }
+    
+    // Seleccionar/deseleccionar todos
+    if (selectAllCheckbox) {
+        selectAllCheckbox.addEventListener('change', function() {
+            comisionCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateButtonState();
+        });
+    }
+    
+    // Actualizar estado cuando se selecciona individualmente
+    comisionCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateButtonState);
+    });
+    
+    // Marcar seleccionadas como pagadas
+    if (marcarTodasBtn) {
+        marcarTodasBtn.addEventListener('click', function() {
+            const checkedBoxes = document.querySelectorAll('.comision-checkbox:checked');
+            const comisionIds = Array.from(checkedBoxes).map(cb => cb.value);
+            
+            if (comisionIds.length === 0) return;
+            
+            if (confirm(`¿Marcar ${comisionIds.length} comisiones como pagadas?`)) {
+                fetch('/reportes/comisiones/marcar-todas-pagadas', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({comision_ids: comisionIds})
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Recargar la página manteniendo los filtros
+                        location.reload();
+                    }
+                });
+            }
+        });
+    }
+    
+    // Marcar individual
+    document.querySelectorAll('.marcar-individual').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const comisionId = this.dataset.id;
+            
+            fetch(`/reportes/comisiones/${comisionId}/marcar-pagado`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                }
+            });
+        });
+    });
+});
+</script>
+{% endblock %}
