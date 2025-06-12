@@ -81,12 +81,39 @@ class Venta(db.Model):
     saldo_pendiente = db.Column(db.Integer, nullable=True)  # sólo para crédito
     estado = db.Column(db.String(20), nullable=False, default='pendiente')  # 'pendiente' o 'pagado'
     fecha = db.Column(db.DateTime, default=datetime.utcnow)
-
-    # Relaciones
+    
+    # CAMPOS PARA TRANSFERENCIAS
+    vendedor_original_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)  # Vendedor que originalmente hizo la venta
+    usuario_actual_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=True)    # Usuario que actualmente gestiona la venta
+    transferida = db.Column(db.Boolean, default=False, nullable=False)                        # Si la venta ha sido transferida
+    fecha_transferencia = db.Column(db.DateTime, nullable=True)                               # Cuándo se transfirió
+    
+    # Relaciones existentes
     cliente = db.relationship('Cliente', back_populates='ventas')
     vendedor = db.relationship('Usuario', foreign_keys=[vendedor_id], backref='ventas')
     detalles = db.relationship('DetalleVenta', backref='venta', lazy=True, cascade='all, delete-orphan')
     abonos = db.relationship('Abono', back_populates='venta', foreign_keys='Abono.venta_id', lazy=True)
+    
+    # RELACIONES PARA TRANSFERENCIAS
+    vendedor_original = db.relationship('Usuario', foreign_keys=[vendedor_original_id], backref='ventas_originales')
+    usuario_actual = db.relationship('Usuario', foreign_keys=[usuario_actual_id], backref='ventas_gestionadas')
+    
+    def usuario_gestor(self):
+        """Retorna el usuario que actualmente gestiona esta venta"""
+        return self.usuario_actual if self.transferida else self.vendedor
+    
+    def puede_gestionar(self, usuario):
+        """Verifica si un usuario puede gestionar esta venta"""
+        if usuario.is_admin():
+            return True
+        
+        if self.transferida:
+            return self.usuario_actual_id == usuario.id
+        else:
+            return self.vendedor_id == usuario.id
+    
+    def __repr__(self):
+        return f"<Venta #{self.id} Cliente:{self.cliente_id} Total:{self.total} Transferida:{self.transferida}>"
 
 
 class Credito(db.Model):
@@ -286,3 +313,25 @@ class Producto(db.Model):
         
     def stock_bajo(self):
         return self.stock > 0 and self.stock <= self.stock_minimo
+
+
+# HISTORIAL DE TRANSFERENCIAS
+class TransferenciaVenta(db.Model):
+    __tablename__ = 'transferencias_venta'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    venta_id = db.Column(db.Integer, db.ForeignKey('ventas.id'), nullable=False)
+    usuario_origen_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    usuario_destino_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)
+    realizada_por_id = db.Column(db.Integer, db.ForeignKey('usuarios.id'), nullable=False)  # Admin que hizo la transferencia
+    motivo = db.Column(db.String(500), nullable=True)  # Motivo de la transferencia
+    fecha = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relaciones
+    venta = db.relationship('Venta', backref='transferencias')
+    usuario_origen = db.relationship('Usuario', foreign_keys=[usuario_origen_id], backref='transferencias_enviadas')
+    usuario_destino = db.relationship('Usuario', foreign_keys=[usuario_destino_id], backref='transferencias_recibidas')
+    realizada_por = db.relationship('Usuario', foreign_keys=[realizada_por_id], backref='transferencias_realizadas')
+    
+    def __repr__(self):
+        return f"<TransferenciaVenta Venta:{self.venta_id} De:{self.usuario_origen_id} A:{self.usuario_destino_id}>"

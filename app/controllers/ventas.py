@@ -1,79 +1,74 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, make_response, current_app, jsonify
+from flask import Blueprint, render_template, redirect, url_for, request, flash, jsonify, current_app, make_response
 from flask_login import login_required, current_user
 from app import db
-from app.models import Venta, DetalleVenta, Producto, Cliente, Caja, MovimientoCaja
+from app.models import (Venta, Cliente, Producto, DetalleVenta, Usuario, MovimientoCaja, 
+                       TransferenciaVenta, Comision, Caja)  
 from app.forms import VentaForm
-from app.decorators import vendedor_required, admin_required, cobrador_required
+from app.decorators import admin_required, vendedor_extended_required, vendedor_required
+from app.utils import calcular_comision, format_currency, registrar_movimiento_caja
 from app.pdf.venta import generar_pdf_venta
-from app.utils import registrar_movimiento_caja, calcular_comision
 from datetime import datetime
-import traceback
 import json
-import logging
-from app.utils import shorten_url
+import traceback
 
 ventas_bp = Blueprint('ventas', __name__, url_prefix='/ventas')
 
 @ventas_bp.route('/')
 @login_required
-@vendedor_required
+@vendedor_extended_required
 def index():
-    # Obtener parámetros de filtro
-    busqueda = request.args.get('busqueda', '')
-    desde_str = request.args.get('desde', '')
-    hasta_str = request.args.get('hasta', '')
-    tipo_filtro = request.args.get('tipo', '')
-    estado_filtro = request.args.get('estado', '')
-
-    query = Venta.query
+    # Filtros de búsqueda
+    cliente_nombre = request.args.get('cliente_nombre', '')
+    tipo = request.args.get('tipo', '')
+    estado = request.args.get('estado', '')
     
-    # Filtrar por vendedor si el usuario es vendedor y no admin
+    # Query base
+    query = Venta.query.join(Cliente)
+    
+    # MODIFICACIÓN: Filtrar según el rol y transferencias
     if current_user.is_vendedor() and not current_user.is_admin():
-        query = query.filter(Venta.vendedor_id == current_user.id)
-        
-    if busqueda:
-        query = query.join(Cliente).filter(Cliente.nombre.ilike(f"%{busqueda}%"))
+        # Vendedores ven sus ventas originales Y las que tienen asignadas por transferencia
+        query = query.filter(
+            db.or_(
+                # Ventas originales no transferidas
+                db.and_(
+                    Venta.vendedor_id == current_user.id,
+                    Venta.transferida == False
+                ),
+                # Ventas transferidas a este usuario
+                db.and_(
+                    Venta.transferida == True,
+                    Venta.usuario_actual_id == current_user.id
+                ),
+                # Ventas originales transferidas (para ver historial)
+                db.and_(
+                    Venta.vendedor_original_id == current_user.id,
+                    Venta.transferida == True
+                )
+            )
+        )
     
-    if desde_str:
-        try:
-            desde_dt = datetime.strptime(desde_str, '%Y-%m-%d')
-            query = query.filter(Venta.fecha >= desde_dt)
-        except ValueError:
-            flash('Fecha "desde" inválida.', 'warning')
+    # Aplicar filtros de búsqueda
+    if cliente_nombre:
+        query = query.filter(Cliente.nombre.ilike(f'%{cliente_nombre}%'))
+    if tipo:
+        query = query.filter(Venta.tipo == tipo)
+    if estado:
+        query = query.filter(Venta.estado == estado)
     
-    if hasta_str:
-        try:
-            hasta_dt = datetime.strptime(hasta_str, '%Y-%m-%d')
-            # Para incluir el día completo, ajustar hasta el final del día
-            hasta_dt_fin_dia = datetime.combine(hasta_dt, datetime.max.time())
-            query = query.filter(Venta.fecha <= hasta_dt_fin_dia)
-        except ValueError:
-            flash('Fecha "hasta" inválida.', 'warning')
-
-    if tipo_filtro:
-        query = query.filter(Venta.tipo == tipo_filtro)
-
-    if estado_filtro:
-        query = query.filter(Venta.estado == estado_filtro)
-
-    ventas = query.order_by(Venta.fecha.desc()).all()
+    # Paginación
+    page = request.args.get('page', 1, type=int)
+    per_page = 20
     
-    # Calcular totales para el resumen
-    total_ventas_monto = sum(v.total for v in ventas)
-    ventas_a_credito_count = sum(1 for v in ventas if v.tipo == 'credito')
-    saldo_pendiente_total = sum(v.saldo_pendiente for v in ventas if v.tipo == 'credito' and v.saldo_pendiente is not None)
-
+    ventas = query.order_by(Venta.fecha.desc()).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+    
     return render_template('ventas/index.html', 
-                           ventas=ventas,
-                           busqueda=busqueda,
-                           desde=desde_str,
-                           hasta=hasta_str,
-                           tipo=tipo_filtro,
-                           estado=estado_filtro,
-                           total_ventas_monto=total_ventas_monto,
-                           ventas_a_credito_count=ventas_a_credito_count,
-                           saldo_pendiente_total=saldo_pendiente_total
-                           )
+                         ventas=ventas, 
+                         cliente_nombre=cliente_nombre,
+                         tipo=tipo, 
+                         estado=estado)
 
 @ventas_bp.route('/crear', methods=['GET', 'POST'])
 @login_required
@@ -237,13 +232,69 @@ def crear():
 def detalle(id):
     venta = Venta.query.get_or_404(id)
     
-    # Si es vendedor y no administrador, verificar que sea su venta
+    # MODIFICACIÓN: Verificar permisos considerando transferencias
     if current_user.is_vendedor() and not current_user.is_admin():
-        if venta.vendedor_id != current_user.id:
+        puede_ver = False
+        
+        # Puede ver si es el vendedor original
+        if venta.vendedor_id == current_user.id:
+            puede_ver = True
+        
+        # Puede ver si es el usuario actual de una venta transferida
+        if venta.transferida and venta.usuario_actual_id == current_user.id:
+            puede_ver = True
+        
+        # Puede ver si es el vendedor original de una venta transferida
+        if venta.transferida and venta.vendedor_original_id == current_user.id:
+            puede_ver = True
+        
+        if not puede_ver:
             flash('No tienes permiso para ver esta venta', 'danger')
             return redirect(url_for('ventas.index'))
     
-    return render_template('ventas/detalle.html', venta=venta)
+    # MODIFICACIÓN: Obtener historial de transferencias si existe
+    transferencias = []
+    if venta.transferida:
+        transferencias = TransferenciaVenta.query.filter_by(
+            venta_id=venta.id
+        ).order_by(TransferenciaVenta.fecha.desc()).all()
+    
+    return render_template('ventas/detalle.html', 
+                         venta=venta, 
+                         transferencias=transferencias)
+
+# Ver transferencias de una venta desde el detalle
+@ventas_bp.route('/<int:id>/transferencias')
+@login_required
+def ver_transferencias(id):
+    """Muestra las transferencias de una venta específica"""
+    venta = Venta.query.get_or_404(id)
+    
+    # Verificar permisos (similar a detalle)
+    if current_user.is_vendedor() and not current_user.is_admin():
+        puede_ver = (venta.vendedor_id == current_user.id or 
+                     (venta.transferida and venta.usuario_actual_id == current_user.id) or
+                     (venta.transferida and venta.vendedor_original_id == current_user.id))
+        
+        if not puede_ver:
+            flash('No tienes permiso para ver esta información', 'danger')
+            return redirect(url_for('ventas.index'))
+    
+    return redirect(url_for('transferencias.historial_venta', venta_id=id))
+
+# FUNCIÓN AUXILIAR: Verificar si usuario puede gestionar venta
+def puede_gestionar_venta(venta, usuario):
+    """
+    Verifica si un usuario puede realizar acciones sobre una venta 
+    (como eliminar, editar, etc.)
+    """
+    if usuario.is_admin():
+        return True
+    
+    if venta.transferida:
+        return venta.usuario_actual_id == usuario.id
+    else:
+        return venta.vendedor_id == usuario.id
 
 @ventas_bp.route('/<int:id>/pdf')
 @login_required
@@ -261,10 +312,20 @@ def pdf(id):
 
 @ventas_bp.route('/<int:id>/eliminar', methods=['POST'])
 @login_required
-@admin_required
+@admin_required  # Solo admin puede eliminar ventas
 def eliminar(id):
     venta = Venta.query.get_or_404(id)
     try:
+        # Verificar que no haya abonos si es crédito
+        if venta.tipo == 'credito' and venta.abonos:
+            flash('No se puede eliminar una venta a crédito que tiene abonos registrados.', 'danger')
+            return redirect(url_for('ventas.detalle', id=id))
+        
+        # Verificar que no esté transferida o solo permita admin
+        if venta.transferida and not current_user.is_admin():
+            flash('Solo los administradores pueden eliminar ventas transferidas.', 'danger')
+            return redirect(url_for('ventas.detalle', id=id))
+        
         # Restaurar stock de productos
         for detalle in venta.detalles:
             producto = Producto.query.get(detalle.producto_id)
@@ -274,16 +335,24 @@ def eliminar(id):
         # Eliminar movimientos de caja asociados
         MovimientoCaja.query.filter_by(venta_id=id).delete()
         
+        # Eliminar transferencias asociadas
+        TransferenciaVenta.query.filter_by(venta_id=id).delete()
+        
+        # Eliminar comisiones asociadas
+        Comision.query.filter_by(venta_id=id).delete()
+        
         # Eliminar detalles y luego la venta
         DetalleVenta.query.filter_by(venta_id=id).delete()
         
         db.session.delete(venta)
         db.session.commit()
         flash(f'Venta #{id} eliminada exitosamente y stock restaurado.', 'success')
+        
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f"Error eliminando venta {id}: {e}")
         flash(f'Error al eliminar la venta: {str(e)}', 'danger')
+    
     return redirect(url_for('ventas.index'))
 
 @ventas_bp.route('/<int:id>/share')
@@ -292,9 +361,12 @@ def compartir(id):
     try:
         venta = Venta.query.get_or_404(id)
         
-        # Verificar permisos si es vendedor
+        # Verificar permisos considerando transferencias
         if current_user.is_vendedor() and not current_user.is_admin():
-            if venta.vendedor_id != current_user.id:
+            puede_compartir = (venta.vendedor_id == current_user.id or 
+                             (venta.transferida and venta.usuario_actual_id == current_user.id))
+            
+            if not puede_compartir:
                 flash('No tienes permisos para compartir esta venta', 'danger')
                 return redirect(url_for('ventas.index'))
         
@@ -305,3 +377,38 @@ def compartir(id):
         current_app.logger.error(f"Error al compartir venta {id}: {e}")
         flash('Error al generar documento para compartir', 'danger')
         return redirect(url_for('ventas.detalle', id=id))
+
+# FUNCIÓN: API para obtener información de transferencia de una venta
+@ventas_bp.route('/api/<int:id>/info-transferencia')
+@login_required
+def api_info_transferencia(id):
+    """API endpoint para obtener información de transferencia de una venta"""
+    try:
+        venta = Venta.query.get_or_404(id)
+        
+        info = {
+            'id': venta.id,
+            'transferida': venta.transferida,
+            'vendedor_original': None,
+            'usuario_actual': None,
+            'puede_transferir': current_user.is_admin(),
+            'puede_gestionar': puede_gestionar_venta(venta, current_user)
+        }
+        
+        if venta.transferida:
+            info['vendedor_original'] = {
+                'id': venta.vendedor_original.id,
+                'nombre': venta.vendedor_original.nombre,
+                'rol': venta.vendedor_original.rol
+            }
+            info['usuario_actual'] = {
+                'id': venta.usuario_actual.id,
+                'nombre': venta.usuario_actual.nombre,
+                'rol': venta.usuario_actual.rol
+            }
+        
+        return jsonify(info)
+        
+    except Exception as e:
+        current_app.logger.error(f"Error en API info transferencia: {e}")
+        return jsonify({'error': str(e)}), 500

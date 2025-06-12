@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+
+{% block title %}Transferir Venta #{{ venta.id }} - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-exchange-alt"></i> Transferir Venta #{{ venta.id }}</h1>
+        <a href="{{ url_for('transferencias.index') }}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver
+        </a>
+    </div>
+
+    <div class="row">
+        <!-- Información de la venta -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información de la Venta</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless">
+                        <tr>
+                            <td><strong>Número de Venta:</strong></td>
+                            <td>#{{ venta.id }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cliente:</strong></td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', id=venta.cliente.id) }}" class="text-decoration-none">
+                                    {{ venta.cliente.nombre }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Gestor Actual:</strong></td>
+                            <td>
+                                <span class="badge bg-primary">{{ venta.usuario_gestor().nombre }}</span>
+                                <small class="text-muted d-block">{{ venta.usuario_gestor().rol|title }}</small>
+                            </td>
+                        </tr>
+                        {% if venta.transferida %}
+                        <tr>
+                            <td><strong>Vendedor Original:</strong></td>
+                            <td>
+                                <span class="badge bg-secondary">{{ venta.vendedor_original.nombre }}</span>
+                                <small class="text-muted d-block">{{ venta.vendedor_original.rol|title }}</small>
+                            </td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td><strong>Total Venta:</strong></td>
+                            <td><strong>${{ "{:,.0f}".format(venta.total) }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Saldo Pendiente:</strong></td>
+                            <td><strong class="text-danger">${{ "{:,.0f}".format(venta.saldo_pendiente) }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fecha Venta:</strong></td>
+                            <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estado:</strong></td>
+                            <td>
+                                {% if venta.transferida %}
+                                    <span class="badge bg-warning">Transferida anteriormente</span>
+                                {% else %}
+                                    <span class="badge bg-success">Original</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+
+                    <!-- Mostrar historial si ha sido transferida -->
+                    {% if venta.transferida %}
+                        <div class="mt-3">
+                            <a href="{{ url_for('transferencias.historial_venta', venta_id=venta.id) }}" 
+                               class="btn btn-sm btn-outline-info">
+                                <i class="fas fa-history"></i> Ver Historial de Transferencias
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Información de abonos -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-money-bill-wave"></i> Resumen de Abonos</h6>
+                </div>
+                <div class="card-body">
+                    {% set total_abonado = venta.total - venta.saldo_pendiente %}
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <h6>Total Abonado</h6>
+                            <span class="badge bg-success fs-6">${{ "{:,.0f}".format(total_abonado) }}</span>
+                        </div>
+                        <div class="col-6">
+                            <h6>Cantidad de Abonos</h6>
+                            <span class="badge bg-info fs-6">{{ venta.abonos|length }}</span>
+                        </div>
+                    </div>
+                    {% if venta.abonos %}
+                        <small class="text-muted d-block mt-2">
+                            Último abono: {{ venta.abonos[-1].fecha.strftime('%d/%m/%Y') }}
+                        </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de transferencia -->
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-user-check"></i> Realizar Transferencia</h5>
+                </div>
+                <div class="card-body">
+                    {% if usuarios_disponibles %}
+                        <form method="POST" action="{{ url_for('transferencias.ejecutar_transferencia') }}" id="transferForm">
+                            <input type="hidden" name="venta_id" value="{{ venta.id }}">
+                            
+                            <div class="mb-4">
+                                <label for="usuario_destino_id" class="form-label">
+                                    <strong>Transferir a:</strong>
+                                </label>
+                                <select class="form-select" id="usuario_destino_id" name="usuario_destino_id" required>
+                                    <option value="">Seleccionar usuario...</option>
+                                    {% for usuario in usuarios_disponibles %}
+                                        <option value="{{ usuario.id }}" data-rol="{{ usuario.rol }}">
+                                            {{ usuario.nombre }} ({{ usuario.rol|title }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">
+                                    Solo se muestran vendedores y cobradores activos diferentes al gestor actual.
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <label for="motivo" class="form-label">
+                                    <strong>Motivo de la transferencia:</strong>
+                                </label>
+                                <textarea class="form-control" id="motivo" name="motivo" rows="3" 
+                                         placeholder="Especifique el motivo de la transferencia (opcional)"></textarea>
+                                <div class="form-text">
+                                    Ejemplo: Reasignación por zona geográfica, cambio de cartera, etc.
+                                </div>
+                            </div>
+
+                            <!-- Información importante -->
+                            <div class="alert alert-warning" role="alert">
+                                <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
+                                <ul class="mb-0">
+                                    <li>La venta mantendrá el registro del <strong>vendedor original</strong></li>
+                                    <li>El nuevo usuario podrá gestionar los <strong>abonos futuros</strong></li>
+                                    <li>Las <strong>comisiones ya generadas</strong> se mantienen para sus respectivos usuarios</li>
+                                    <li>El historial de abonos anteriores <strong>no se modifica</strong></li>
+                                </ul>
+                            </div>
+
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-success btn-lg" id="btnTransferir">
+                                    <i class="fas fa-exchange-alt"></i> Confirmar Transferencia
+                                </button>
+                                <a href="{{ url_for('transferencias.index') }}" class="btn btn-secondary">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </form>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users-slash fa-3x text-muted mb-3"></i>
+                            <h5>No hay usuarios disponibles</h5>
+                            <p class="text-muted">
+                                No existen otros vendedores o cobradores activos a los cuales transferir esta venta.
+                            </p>
+                            <a href="{{ url_for('transferencias.index') }}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación -->
+<div class="modal fade" id="confirmModal" tabindex="-1" aria-labelledby="confirmModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="confirmModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Transferencia
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>¿Está seguro de realizar esta transferencia?</strong></p>
+                <p>La venta <strong>#{{ venta.id }}</strong> será transferida de:</p>
+                <ul>
+                    <li><strong>De:</strong> <span id="usuarioOrigen">{{ venta.usuario_gestor().nombre }}</span></li>
+                    <li><strong>Para:</strong> <span id="usuarioDestino"></span></li>
+                </ul>
+                <p class="text-muted">Esta acción se registrará en el historial y podrá ser revertida posteriormente si es necesario.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <button type="button" class="btn btn-success" id="confirmarTransferencia">
+                    <i class="fas fa-check"></i> Sí, Transferir
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.getElementById('transferForm');
+    const usuarioSelect = document.getElementById('usuario_destino_id');
+    const btnTransferir = document.getElementById('btnTransferir');
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    
+    // Manejar envío del formulario
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const usuarioDestino = usuarioSelect.options[usuarioSelect.selectedIndex];
+        if (usuarioDestino.value) {
+            document.getElementById('usuarioDestino').textContent = usuarioDestino.text;
+            confirmModal.show();
+        }
+    });
+    
+    // Confirmar transferencia
+    document.getElementById('confirmarTransferencia').addEventListener('click', function() {
+        form.submit();
+    });
+    
+    // Cambio de color del botón basado en selección
+    usuarioSelect.addEventListener('change', function() {
+        if (this.value) {
+            btnTransferir.disabled = false;
+            btnTransferir.classList.remove('btn-secondary');
+            btnTransferir.classList.add('btn-success');
+        } else {
+            btnTransferir.disabled = true;
+            btnTransferir.classList.remove('btn-success');
+            btnTransferir.classList.add('btn-secondary');
+        }
+    });
+    
+    // Estado inicial del botón
+    btnTransferir.disabled = true;
+    btnTransferir.classList.add('btn-secondary');
+});
+</script>
+{% endblock %}

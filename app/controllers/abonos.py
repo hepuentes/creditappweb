@@ -2,7 +2,7 @@ from flask import Blueprint, render_template, redirect, url_for, flash, request,
 from flask_login import login_required, current_user
 from sqlalchemy.exc import SQLAlchemyError
 from app import db
-from app.models import Abono, Cliente, Credito, CreditoVenta, Venta, Caja, MovimientoCaja
+from app.models import Abono, Cliente, Credito, CreditoVenta, Venta, Caja, MovimientoCaja, TransferenciaVenta
 from app.forms import AbonoForm, AbonoEditForm
 from app.decorators import cobrador_required, vendedor_cobrador_required, admin_required
 from app.utils import registrar_movimiento_caja, calcular_comision
@@ -24,11 +24,36 @@ def index():
     hasta_str = request.args.get('hasta', '')
     
     # Consulta base
-    query = Abono.query
+    query = Abono.query.join(Venta).join(Cliente)
     
-    # Si es vendedor, filtrar solo sus propias ventas/abonos
-    if current_user.is_vendedor():
-        query = query.join(Abono.venta).filter(Venta.vendedor_id == current_user.id)
+    if current_user.is_vendedor() and not current_user.is_admin():
+        query = query.filter(
+            db.or_(
+                db.and_(
+                    Venta.vendedor_id == current_user.id,
+                    Venta.transferida == False
+                ),
+                db.and_(
+                    Venta.transferida == True,
+                    Venta.usuario_actual_id == current_user.id
+                ),
+                Abono.cobrador_id == current_user.id
+            )
+        )
+    elif current_user.is_cobrador() and not current_user.is_admin():
+        query = query.filter(
+            db.or_(
+                db.and_(
+                    Venta.transferida == True,
+                    Venta.usuario_actual_id == current_user.id
+                ),
+                Abono.cobrador_id == current_user.id,
+                db.and_(
+                    Venta.tipo == 'credito',
+                    Venta.transferida == False
+                )
+            )
+        )
     
     if busqueda:
         # Buscar por nombre de cliente asociado a la venta del abono
@@ -66,6 +91,9 @@ def index():
 @login_required
 @vendedor_cobrador_required
 def crear():
+    cliente_id = request.args.get('cliente_id', type=int)
+    venta_id = request.args.get('venta_id', type=int)
+    
     form = AbonoForm()
     
     # Cargar cajas disponibles
@@ -73,29 +101,48 @@ def crear():
     form.caja_id.choices = [(c.id, f"{c.nombre} ({c.tipo})") for c in cajas] if cajas else [(0, "No hay cajas disponibles")]
     
     # Obtener parámetros de URL
-    cliente_id = request.args.get('cliente_id', type=int)
-    venta_id = request.args.get('venta_id', type=int)
     
-    # Modificar la consulta para vendedores - solo mostrar sus clientes
+    # Cargar clientes según permisos y transferencias
     if current_user.is_vendedor() and not current_user.is_admin():
-        clientes_query = db.session.query(Cliente).join(Venta).filter(
+        clientes_query = Cliente.query.join(Venta).filter(
             Venta.tipo == 'credito',
             Venta.saldo_pendiente > 0,
-            Venta.vendedor_id == current_user.id
-        ).distinct().order_by(Cliente.nombre)
+            db.or_(
+                # Ventas originales no transferidas
+                db.and_(
+                    Venta.vendedor_id == current_user.id,
+                    Venta.transferida == False
+                ),
+                # Ventas transferidas a este usuario
+                db.and_(
+                    Venta.transferida == True,
+                    Venta.usuario_actual_id == current_user.id
+                )
+            )
+        ).distinct()
+    elif current_user.is_cobrador() and not current_user.is_admin():
+        clientes_query = Cliente.query.join(Venta).filter(
+            Venta.tipo == 'credito',
+            Venta.saldo_pendiente > 0,
+            db.or_(
+                # Ventas transferidas a este cobrador
+                db.and_(
+                    Venta.transferida == True,
+                    Venta.usuario_actual_id == current_user.id
+                ),
+                # Todas las ventas a crédito (cobradores pueden cobrar cualquiera)
+                Venta.transferida == False
+            )
+        ).distinct()
     else:
-        clientes_query = db.session.query(Cliente).join(Venta).filter(
+        # Admin ve todos los clientes con créditos pendientes
+        clientes_query = Cliente.query.join(Venta).filter(
             Venta.tipo == 'credito',
             Venta.saldo_pendiente > 0
-        ).distinct().order_by(Cliente.nombre)
+        ).distinct()
     
-    clientes = clientes_query.all()
-
-    # Configurar opciones para el select de clientes
-    if clientes:
-        form.cliente_id.choices = [(c.id, f"{c.nombre} - {c.cedula}") for c in clientes]
-    else:
-        form.cliente_id.choices = [(-1, "No hay clientes con créditos pendientes")]
+    clientes = clientes_query.order_by(Cliente.nombre).all()
+    form.cliente_id.choices = [(-1, "Seleccionar cliente primero")] + [(c.id, c.nombre) for c in clientes]
     
     # Inicialmente, configurar opciones para ventas (esto se actualizará dinámicamente)
     form.venta_id.choices = [(-1, "Seleccione un cliente primero")]
@@ -113,68 +160,113 @@ def crear():
                 form.cliente_id.data = cliente_id
                 client_selected = True
                 
-                # Cargar las ventas de este cliente (filtrar por vendedor si es necesario)
+                # MODIFICACIÓN: Cargar ventas considerando transferencias
                 ventas_query = Venta.query.filter(
                     Venta.cliente_id == cliente_id,
                     Venta.tipo == 'credito', 
                     Venta.saldo_pendiente > 0
                 )
                 
+                # Filtrar por permisos y transferencias
                 if current_user.is_vendedor() and not current_user.is_admin():
-                    ventas_query = ventas_query.filter(Venta.vendedor_id == current_user.id)
+                    ventas_query = ventas_query.filter(
+                        db.or_(
+                            # Ventas originales del vendedor
+                            db.and_(
+                                Venta.vendedor_id == current_user.id,
+                                Venta.transferida == False
+                            ),
+                            # Ventas transferidas al vendedor
+                            db.and_(
+                                Venta.transferida == True,
+                                Venta.usuario_actual_id == current_user.id
+                            )
+                        )
+                    )
+                elif current_user.is_cobrador() and not current_user.is_admin():
+                    ventas_query = ventas_query.filter(
+                        db.or_(
+                            # Ventas transferidas al cobrador
+                            db.and_(
+                                Venta.transferida == True,
+                                Venta.usuario_actual_id == current_user.id
+                            ),
+                            # Ventas sin transferir (cobradores pueden cobrar cualquiera)
+                            Venta.transferida == False
+                        )
+                    )
                 
                 ventas_pendientes = ventas_query.all()
                 
                 if ventas_pendientes:
-                    form.venta_id.choices = [
-                        (v.id, f"Venta #{v.id} - {v.fecha.strftime('%d/%m/%Y')} - Saldo: ${v.saldo_pendiente:,.0f}")
-                        for v in ventas_pendientes
-                    ]
+                    form.venta_id.choices = []
+                    for v in ventas_pendientes:
+                        # Mostrar información adicional sobre transferencias
+                        etiqueta_extra = ""
+                        if v.transferida:
+                            etiqueta_extra = f" (Transferida - Gestor: {v.usuario_actual.nombre})"
+                        
+                        form.venta_id.choices.append((
+                            v.id, 
+                            f"Venta #{v.id} - {v.fecha.strftime('%d/%m/%Y')} - Saldo: ${v.saldo_pendiente:,.0f}{etiqueta_extra}"
+                        ))
                 else:
-                    form.venta_id.choices = [(-1, "Este cliente no tiene ventas pendientes")]
+                    form.venta_id.choices = [(-1, "Este cliente no tiene ventas pendientes que puedas gestionar")]
             else:
-                flash(f"El cliente con ID {cliente_id} no tiene ventas a crédito pendientes o no pertenece a sus ventas", "warning")
+                flash(f"El cliente con ID {cliente_id} no tiene ventas a crédito pendientes o no tienes permisos para gestionarlas", "warning")
     
+        
     # Si tiene venta_id, preseleccionar la venta
     if venta_id:
         current_app.logger.info(f"Preseleccionando venta_id={venta_id}")
         
         venta = Venta.query.get(venta_id)
         if venta and venta.tipo == 'credito' and venta.saldo_pendiente > 0:
-            # Verificar si el vendedor puede acceder a esta venta
-            if current_user.is_vendedor() and not current_user.is_admin():
-                if venta.vendedor_id != current_user.id:
-                    flash("No tienes permisos para abonar a esta venta", "danger")
-                    return redirect(url_for('abonos.index'))
+            # MODIFICACIÓN: Verificar si el usuario puede gestionar esta venta
+            puede_gestionar = False
             
-            if not client_selected:
-                cliente_id = venta.cliente_id
-                
-                if any(c[0] == cliente_id for c in form.cliente_id.choices):
-                    form.cliente_id.data = cliente_id
-                    client_selected = True
-                
-                # Cargar las ventas de este cliente
-                ventas_query = Venta.query.filter(
-                    Venta.cliente_id == cliente_id,
-                    Venta.tipo == 'credito', 
-                    Venta.saldo_pendiente > 0
+            if current_user.is_admin():
+                puede_gestionar = True
+            elif current_user.is_vendedor():
+                # Vendedor puede gestionar si es original no transferida O transferida a él
+                puede_gestionar = (
+                    (venta.vendedor_id == current_user.id and not venta.transferida) or
+                    (venta.transferida and venta.usuario_actual_id == current_user.id)
                 )
-                
-                if current_user.is_vendedor() and not current_user.is_admin():
-                    ventas_query = ventas_query.filter(Venta.vendedor_id == current_user.id)
-                
-                ventas_pendientes = ventas_query.all()
-                
-                if ventas_pendientes:
-                    form.venta_id.choices = [
-                        (v.id, f"Venta #{v.id} - {v.fecha.strftime('%d/%m/%Y')} - Saldo: ${v.saldo_pendiente:,.0f}")
-                        for v in ventas_pendientes
-                    ]
+            elif current_user.is_cobrador():
+                # Cobrador puede gestionar si está transferida a él O no está transferida
+                puede_gestionar = (
+                    (venta.transferida and venta.usuario_actual_id == current_user.id) or
+                    not venta.transferida
+                )
             
-            # Seleccionar la venta en el dropdown
-            if any(v[0] == venta_id for v in form.venta_id.choices):
-                form.venta_id.data = venta_id
+            if puede_gestionar:
+                if not client_selected:
+                    cliente_id = venta.cliente_id
+                    
+                    if any(c[0] == cliente_id for c in form.cliente_id.choices):
+                        form.cliente_id.data = cliente_id
+                        client_selected = True
+                    
+                    # Cargar las ventas de este cliente
+                    ventas_query = Venta.query.filter(
+                        Venta.cliente_id == cliente_id,
+                        Venta.tipo == 'credito', 
+                        Venta.saldo_pendiente > 0
+                    )
+                    
+                    if current_user.is_vendedor() and not current_user.is_admin():
+                        ventas_query = ventas_query.filter(Venta.vendedor_id == current_user.id)
+                    
+                    ventas_pendientes = ventas_query.all()
+                    
+                    if ventas_pendientes:
+                        form.venta_id.choices = [
+                            (v.id, f"Venta #{v.id} - {v.fecha.strftime('%d/%m/%Y')} - Saldo: ${v.saldo_pendiente:,.0f}")
+                            for v in ventas_pendientes
+                        ]
+            else:
+                flash(f"No tienes permisos para realizar abonos a la venta #{venta_id}", "warning")
         else:
             if venta:
                 flash(f"La venta #{venta_id} no es un crédito o no tiene saldo pendiente", "warning")
@@ -264,75 +356,93 @@ def crear():
             current_app.logger.warning(f"Errores de validación personalizados: {validation_errors}")
             return render_template('abonos/crear.html', form=form, clientes=clientes)
         
-        # Si llegamos aquí, la validación pasó - procesar el abono
-        try:
-            # SOLUCIÓN: Usar session.no_autoflush para evitar flush prematuro
-            with db.session.no_autoflush:
-                # Usar las variables ya validadas y CONVERTIR A INT para consistencia
-                venta = venta_form
-                monto_int = int(monto_decimal)  # Convertir a entero (representando centavos si es necesario)
+        if all(validation_errors) == False:  # Si no hay errores de validación
+            try:
+                # Obtener la venta seleccionada
+                venta_seleccionada = Venta.query.get(form.venta_id.data)
+                
+                # MODIFICACIÓN: Verificar permisos una vez más antes de crear
+                puede_abonar = False
+                if current_user.is_admin():
+                    puede_abonar = True
+                elif current_user.is_vendedor():
+                    puede_abonar = (
+                        (venta_seleccionada.vendedor_id == current_user.id and not venta_seleccionada.transferida) or
+                        (venta_seleccionada.transferida and venta_seleccionada.usuario_actual_id == current_user.id)
+                    )
+                elif current_user.is_cobrador():
+                    puede_abonar = (
+                        (venta_seleccionada.transferida and venta_seleccionada.usuario_actual_id == current_user.id) or
+                        not venta_seleccionada.transferida
+                    )
+                
+                if not puede_abonar:
+                    flash("No tienes permisos para realizar abonos a esta venta", "danger")
+                    return render_template('abonos/crear.html', form=form)
                 
                 # Crear el abono
-                abono = Abono(
-                    venta_id=venta.id,
-                    monto=monto_int,  # Usar int para consistencia con otros campos monetarios
-                    fecha=datetime.utcnow(),
-                    cobrador_id=current_user.id,
-                    caja_id=caja_id_form,
-                    notas=request.form.get('notas', '').strip()
+                nuevo_abono = Abono(
+                    venta_id=form.venta_id.data,
+                    monto=form.monto.data,
+                    cobrador_id=current_user.id,  # Siempre el usuario actual
+                    caja_id=form.caja_id.data,
+                    notas=request.form.get('observaciones', '').strip()
                 )
                 
-                current_app.logger.info(f"Intentando crear abono: venta_id={abono.venta_id}, "
-                                       f"monto={monto_int}, cobrador_id={abono.cobrador_id}, "
-                                       f"caja_id={abono.caja_id}")
+                current_app.logger.info(f"Intentando crear abono: venta_id={nuevo_abono.venta_id}, "
+                                       f"monto={nuevo_abono.monto}, cobrador_id={nuevo_abono.cobrador_id}, "
+                                       f"caja_id={nuevo_abono.caja_id}")
                 
-                db.session.add(abono)
+                db.session.add(nuevo_abono)
                 db.session.flush()
                 
                 # Actualizar el saldo pendiente de la venta
-                venta.saldo_pendiente = int(venta.saldo_pendiente) - monto_int
+                venta_seleccionada.saldo_pendiente = int(venta_seleccionada.saldo_pendiente) - int(nuevo_abono.monto)
                 
-                if venta.saldo_pendiente <= 0:
-                    venta.estado = 'pagado'
-                    venta.saldo_pendiente = 0
+                if venta_seleccionada.saldo_pendiente <= 0:
+                    venta_seleccionada.estado = 'pagado'
+                    venta_seleccionada.saldo_pendiente = 0
                 
                 # Registrar movimiento en caja
                 movimiento = MovimientoCaja(
-                    caja_id=caja_id_form,
+                    caja_id=nuevo_abono.caja_id,
                     tipo='entrada',
-                    monto=monto_int,  # Usar int
-                    descripcion=f'Abono a venta #{venta.id}',
-                    abono_id=abono.id
+                    monto=nuevo_abono.monto,  # Usar int
+                    descripcion=f'Abono a venta #{venta_seleccionada.id}'
                 )
                 db.session.add(movimiento)
                 
                 # Actualizar saldo de caja
-                caja = Caja.query.get(caja_id_form)
+                caja = Caja.query.get(nuevo_abono.caja_id)
                 if caja:
-                    caja.saldo_actual = int(caja.saldo_actual) + monto_int
+                    caja.saldo_actual = int(caja.saldo_actual) + int(nuevo_abono.monto)
             
-            # Calcular comisión (fuera del no_autoflush)
-            try:
-                calcular_comision(float(monto_int), current_user.id, None, abono.id)
+                # Calcular comisión (fuera del no_autoflush)
+                try:
+                    calcular_comision(float(nuevo_abono.monto), current_user.id, None, nuevo_abono.id)
+                except Exception as e:
+                    current_app.logger.error(f"Error al calcular comisión: {e}")
+                
+                # Commit de todos los cambios
+                db.session.commit()
+                
+                # Al final, agregar información sobre transferencia en el mensaje de éxito
+                mensaje_exito = f'Abono registrado exitosamente por ${nuevo_abono.monto:,.0f}'
+                if venta_seleccionada.transferida:
+                    mensaje_exito += f' (Venta transferida - gestionada por {venta_seleccionada.usuario_actual.nombre})'
+                
+                flash(mensaje_exito, 'success')
+                
+                return redirect(url_for('abonos.index'))
+                
+            except SQLAlchemyError as e:
+                db.session.rollback()
+                current_app.logger.error(f"Error de base de datos al registrar abono: {e}")
+                flash('Error de base de datos al registrar el abono. Intente nuevamente.', 'danger')
             except Exception as e:
-                current_app.logger.error(f"Error al calcular comisión: {e}")
-            
-            # Commit de todos los cambios
-            db.session.commit()
-            
-            monto_formateado = f"${monto_int:,.0f}"
-            flash(f'Abono de {monto_formateado} registrado exitosamente', 'success')
-            
-            return redirect(url_for('abonos.index'))
-            
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error de base de datos al registrar abono: {e}")
-            flash('Error de base de datos al registrar el abono. Intente nuevamente.', 'danger')
-        except Exception as e:
-            db.session.rollback()
-            current_app.logger.error(f"Error general al registrar abono: {e}")
-            flash(f'Error al registrar el abono: {str(e)}', 'danger')
+                db.session.rollback()
+                current_app.logger.error(f"Error general al registrar abono: {e}")
+                flash(f'Error al registrar el abono: {str(e)}', 'danger')
     
     return render_template('abonos/crear.html', form=form, clientes=clientes)
 
@@ -362,235 +472,217 @@ def cargar_ventas(cliente_id):
                     'id': int(v.id),
                     'texto': f"Venta #{v.id} - {v.fecha.strftime('%d/%m/%Y')} - Saldo: ${v.saldo_pendiente:,.0f}"
                 })
-        else:
-            ventas_json.append({
-                'id': -1,
-                'texto': "Este cliente no tiene ventas a crédito pendientes"
-            })
         
         return jsonify(ventas_json)
     except Exception as e:
-        current_app.logger.error(f"Error al cargar ventas: {e}")
-        return jsonify([{"id": -1, "texto": "Error al cargar ventas"}])
+        current_app.logger.error(f"Error al cargar ventas para cliente {cliente_id}: {e}")
+        return jsonify([]), 500
+
+def puede_gestionar_venta_para_abono(venta, usuario):
+    """
+    Verifica si un usuario puede realizar abonos a una venta específica
+    considerando las transferencias
+    """
+    if usuario.is_admin():
+        return True
+    
+    if usuario.is_vendedor():
+        # Vendedor puede abonar a sus ventas originales no transferidas
+        # O a ventas transferidas a él
+        return (
+            (venta.vendedor_id == usuario.id and not venta.transferida) or
+            (venta.transferida and venta.usuario_actual_id == usuario.id)
+        )
+    
+    if usuario.is_cobrador():
+        # Cobrador puede abonar a ventas transferidas a él
+        # O a cualquier venta no transferida
+        return (
+            (venta.transferida and venta.usuario_actual_id == usuario.id) or
+            not venta.transferida
+        )
+    
+    return False
 
 @abonos_bp.route('/<int:id>')
 @login_required
-@vendedor_cobrador_required  # Cambiado de @cobrador_required
+@vendedor_cobrador_required
 def detalle(id):
     abono = Abono.query.get_or_404(id)
     
-    # Si es vendedor, verificar que el abono pertenezca a una venta suya
+    # MODIFICACIÓN: Verificar permisos considerando transferencias
     if current_user.is_vendedor() and not current_user.is_admin():
-        if abono.venta and abono.venta.vendedor_id != current_user.id:
-            flash('No tienes permisos para ver este abono', 'danger')
-            return redirect(url_for('dashboard.index'))
+        puede_ver = False
+        
+        # Puede ver si es de una venta suya (original o transferida a él)
+        if puede_gestionar_venta_para_abono(abono.venta, current_user):
+            puede_ver = True
+        
+        # También puede ver si él hizo el abono
+        if abono.cobrador_id == current_user.id:
+            puede_ver = True
+        
+        if not puede_ver:
+            flash('No tienes permiso para ver este abono', 'danger')
+            return redirect(url_for('abonos.index'))
     
-    return render_template('abonos/detalle.html', abono=abono)
+    # Obtener información de transferencias de la venta si aplica
+    info_transferencia = None
+    if abono.venta.transferida:
+        info_transferencia = {
+            'vendedor_original': abono.venta.vendedor_original.nombre,
+            'usuario_actual': abono.venta.usuario_actual.nombre,
+            'fecha_transferencia': abono.venta.fecha_transferencia
+        }
+    
+    return render_template('abonos/detalle.html', 
+                         abono=abono, 
+                         info_transferencia=info_transferencia)
 
-@abonos_bp.route('/<int:id>/editar', methods=['GET', 'POST'])
+@abonos_bp.route('/editar/<int:id>', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def editar(id):
     abono = Abono.query.get_or_404(id)
-    form = AbonoEditForm(abono=abono)
+    form = AbonoEditForm(obj=abono)
     
     # Cargar cajas disponibles
     cajas = Caja.query.all()
-    form.caja_id.choices = [(c.id, f"{c.nombre} ({c.tipo})") for c in cajas]
-    
-    # Precargar datos del abono
-    if request.method == 'GET':
-        form.monto.data = str(int(abono.monto))  # Convertir a int para display
-        form.caja_id.data = abono.caja_id
-        form.notas.data = abono.notas
-        
-        # Configurar cliente y venta
-        if abono.venta:
-            cliente = abono.venta.cliente
-            venta = abono.venta
+    form.caja_id.choices = [(c.id, f"{c.nombre} ({c.tipo})") for c in cajas] if cajas else [(0, "No hay cajas disponibles")]
     
     if form.validate_on_submit():
         try:
-            with db.session.no_autoflush:
-                # Guardar valores originales para cálculos
-                monto_original = int(abono.monto)
-                caja_original_id = abono.caja_id
-                
-                # Validar nuevo monto
-                nuevo_monto_str = request.form.get('monto', '').strip().replace(',', '.')
-                try:
-                    nuevo_monto = int(float(nuevo_monto_str))  # Convertir a int
-                except ValueError:
-                    flash('Formato del monto no válido', 'danger')
-                    return render_template('abonos/editar.html', form=form, abono=abono)
-                
-                if nuevo_monto <= 0:
-                    flash('El monto debe ser mayor a cero', 'danger')
-                    return render_template('abonos/editar.html', form=form, abono=abono)
-                
-                # Validar que el nuevo monto no exceda el saldo disponible
-                venta = abono.venta
-                saldo_disponible = int(venta.saldo_pendiente) + monto_original
-                
-                if nuevo_monto > saldo_disponible:
-                    flash(f'El monto no puede ser mayor al saldo disponible (${saldo_disponible:,.0f})', 'danger')
-                    return render_template('abonos/editar.html', form=form, abono=abono)
-                
-                # Calcular diferencia de montos
-                diferencia_monto = nuevo_monto - monto_original
-                
-                # Actualizar el abono
-                abono.monto = nuevo_monto
-                abono.caja_id = form.caja_id.data
-                abono.notas = form.notas.data
-                
-                # Actualizar saldo de la venta
-                venta.saldo_pendiente = int(venta.saldo_pendiente) - diferencia_monto
-                
-                if venta.saldo_pendiente <= 0:
-                    venta.estado = 'pagado'
-                    venta.saldo_pendiente = 0
-                else:
-                    venta.estado = 'pendiente'
-                
-                # Actualizar movimientos de caja
-                movimientos_existentes = MovimientoCaja.query.filter_by(abono_id=abono.id).all()
-                
-                # Si cambió la caja o el monto, actualizar movimientos
-                if caja_original_id != form.caja_id.data or diferencia_monto != 0:
-                    # Eliminar movimientos existentes
-                    for mov in movimientos_existentes:
-                        # Revertir el movimiento en la caja original
-                        caja_original = Caja.query.get(mov.caja_id)
-                        if caja_original:
-                            caja_original.saldo_actual = int(caja_original.saldo_actual) - int(mov.monto)
-                        db.session.delete(mov)
-                    
-                    # Crear nuevo movimiento en la caja seleccionada
-                    nuevo_movimiento = MovimientoCaja(
-                        caja_id=form.caja_id.data,
-                        tipo='entrada',
-                        monto=nuevo_monto,
-                        descripcion=f'Abono a venta #{venta.id} (editado)',
-                        abono_id=abono.id
-                    )
-                    db.session.add(nuevo_movimiento)
-                    
-                    # Actualizar saldo de la nueva caja
-                    nueva_caja = Caja.query.get(form.caja_id.data)
-                    if nueva_caja:
-                        nueva_caja.saldo_actual = int(nueva_caja.saldo_actual) + nuevo_monto
+            # Guardar el monto original para el movimiento de caja
+            monto_original = abono.monto
+            caja_original_id = abono.caja_id
+            
+            # Actualizar abono
+            form.populate_obj(abono)
+            
+            # Actualizar saldo de la venta
+            venta = abono.venta
+            
+            # Revertir el abono original
+            venta.saldo_pendiente += monto_original
+            
+            # Aplicar el nuevo abono
+            venta.saldo_pendiente -= abono.monto
+            
+            if venta.saldo_pendiente <= 0:
+                venta.estado = 'pagado'
+                venta.saldo_pendiente = 0
+            else:
+                venta.estado = 'pendiente' # Asegurarse de que el estado sea pendiente si hay saldo
+            
+            # Actualizar movimientos de caja
+            # Revertir movimiento original
+            caja_original = Caja.query.get(caja_original_id)
+            if caja_original:
+                caja_original.saldo_actual -= monto_original
+            
+            # Crear nuevo movimiento o actualizar existente
+            movimiento = MovimientoCaja.query.filter_by(abono_id=abono.id).first()
+            if not movimiento:
+                movimiento = MovimientoCaja(abono_id=abono.id)
+                db.session.add(movimiento)
+            
+            movimiento.caja_id = abono.caja_id
+            movimiento.tipo = 'entrada'
+            movimiento.monto = abono.monto
+            movimiento.descripcion = f'Abono a venta #{venta.id} (editado)'
+            
+            # Actualizar saldo de la nueva caja
+            caja_nueva = Caja.query.get(abono.caja_id)
+            if caja_nueva:
+                caja_nueva.saldo_actual += abono.monto
             
             db.session.commit()
-            
-            flash(f'Abono #{abono.id} editado exitosamente. Nuevo monto: ${nuevo_monto:,.0f}', 'success')
-            return redirect(url_for('abonos.detalle', id=abono.id))
-            
+            flash('Abono actualizado exitosamente.', 'success')
+            return redirect(url_for('abonos.index'))
         except SQLAlchemyError as e:
             db.session.rollback()
-            current_app.logger.error(f"Error de base de datos al editar abono {id}: {e}")
-            flash('Error de base de datos al editar el abono. Intente nuevamente.', 'danger')
+            flash(f'Error de base de datos al actualizar el abono: {e}' , 'danger')
         except Exception as e:
             db.session.rollback()
-            current_app.logger.error(f"Error general al editar abono {id}: {e}")
-            flash(f'Error al editar el abono: {str(e)}', 'danger')
-    
+            flash(f'Error general al actualizar el abono: {str(e)}' , 'danger')
+            
     return render_template('abonos/editar.html', form=form, abono=abono)
 
-@abonos_bp.route('/<int:id>/eliminar', methods=['POST'])
+@abonos_bp.route('/eliminar/<int:id>', methods=['POST'])
 @login_required
 @admin_required
 def eliminar(id):
     abono = Abono.query.get_or_404(id)
-    
     try:
-        with db.session.no_autoflush:
-            # Guardar información para el mensaje
-            monto_abono = int(abono.monto)
-            venta_id = abono.venta_id
-            
-            # Restaurar saldo pendiente de la venta
-            if abono.venta:
-                venta = abono.venta
-                venta.saldo_pendiente = int(venta.saldo_pendiente) + monto_abono
-                venta.estado = 'pendiente'  # Cambiar estado a pendiente
-            
-            # Eliminar movimientos de caja asociados y revertir saldos
-            movimientos = MovimientoCaja.query.filter_by(abono_id=abono.id).all()
-            for movimiento in movimientos:
-                # Revertir el saldo de la caja
-                caja = Caja.query.get(movimiento.caja_id)
-                if caja:
-                    caja.saldo_actual = int(caja.saldo_actual) - int(movimiento.monto)
-                
-                db.session.delete(movimiento)
-            
-            # Eliminar comisiones asociadas (si existen)
-            from app.models import Comision
-            comisiones = Comision.query.filter_by(abono_id=abono.id).all()
-            for comision in comisiones:
-                db.session.delete(comision)
-            
-            # Eliminar el abono
-            db.session.delete(abono)
+        # Revertir el saldo de la venta
+        venta = abono.venta
+        venta.saldo_pendiente += abono.monto
+        venta.estado = 'pendiente' # La venta vuelve a estar pendiente
         
+        # Revertir el movimiento de caja
+        movimiento = MovimientoCaja.query.filter_by(abono_id=abono.id).first()
+        if movimiento:
+            caja = movimiento.caja
+            if caja:
+                caja.saldo_actual -= movimiento.monto
+            db.session.delete(movimiento)
+            
+        db.session.delete(abono)
         db.session.commit()
-        
-        flash(f'Abono de ${monto_abono:,.0f} eliminado exitosamente. Saldo de venta #{venta_id} restaurado.', 'success')
-        
+        flash('Abono eliminado exitosamente.', 'success')
     except SQLAlchemyError as e:
         db.session.rollback()
-        current_app.logger.error(f"Error de base de datos al eliminar abono {id}: {e}")
-        flash('Error de base de datos al eliminar el abono. Intente nuevamente.', 'danger')
-        return redirect(url_for('abonos.detalle', id=id))
+        flash(f'Error de base de datos al eliminar el abono: {e}' , 'danger')
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f"Error general al eliminar abono {id}: {e}")
-        flash(f'Error al eliminar el abono: {str(e)}', 'danger')
-        return redirect(url_for('abonos.detalle', id=id))
-    
+        flash(f'Error general al eliminar el abono: {str(e)}' , 'danger')
+        
     return redirect(url_for('abonos.index'))
 
-@abonos_bp.route('/<int:id>/pdf')
-@login_required
-@vendedor_cobrador_required  # Cambiado para permitir vendedores
-def pdf(id):
-    abono = Abono.query.get_or_404(id)
-    
-    # Si es vendedor, verificar que el abono pertenezca a una venta suya
-    if current_user.is_vendedor() and not current_user.is_admin():
-        if abono.venta and abono.venta.vendedor_id != current_user.id:
-            flash('No tienes permisos para ver este PDF', 'danger')
-            return redirect(url_for('dashboard.index'))
-    
-    try:
-        pdf_bytes = generar_pdf_abono(abono)
-        response = make_response(pdf_bytes)
-        response.headers['Content-Type'] = 'application/pdf'
-        response.headers['Content-Disposition'] = f'inline; filename=abono_{abono.id}.pdf'
-        return response
-    except Exception as e:
-        current_app.logger.error(f"Error generando PDF: {e}")
-        flash(f"Error generando el PDF: {str(e)}", "danger")
-        return redirect(url_for('abonos.detalle', id=id))
-
-@abonos_bp.route('/<int:id>/share')
+@abonos_bp.route('/generar_pdf/<int:abono_id>')
 @login_required
 @vendedor_cobrador_required
-def compartir(id):
-    try:
-        abono = Abono.query.get_or_404(id)
-        
-        # Verificar permisos si es vendedor
-        if current_user.is_vendedor() and not current_user.is_admin():
-            if abono.venta and abono.venta.vendedor_id != current_user.id:
-                flash('No tienes permisos para compartir este abono', 'danger')
-                return redirect(url_for('abonos.index'))
-        
-        # Redirigir directamente a la página de compartir sin usar sesión
-        return redirect(url_for('public.share_page', tipo='abono', id=id))
-        
-    except Exception as e:
-        current_app.logger.error(f"Error al compartir abono {id}: {e}")
-        flash('Error al generar documento para compartir', 'danger')
-        return redirect(url_for('abonos.detalle', id=id))
+def generar_pdf(abono_id):
+    abono = Abono.query.get_or_404(abono_id)
+    
+    # Si es vendedor, verificar que el abono pertenezca a una de sus ventas
+    if current_user.is_vendedor() and not current_user.is_admin():
+        if abono.venta.vendedor_id != current_user.id:
+            flash('No tienes permiso para generar PDF de este abono', 'danger')
+            return redirect(url_for('abonos.index'))
+            
+    pdf_output = generar_pdf_abono(abono)
+    response = make_response(pdf_output)
+    response.headers['Content-Type'] = 'application/pdf'
+    response.headers['Content-Disposition'] = f'attachment; filename=abono_{abono.id}.pdf'
+    return response
+
+@abonos_bp.route('/get_abono_info/<int:abono_id>')
+@login_required
+@vendedor_cobrador_required
+def get_abono_info(abono_id):
+    abono = Abono.query.get(abono_id)
+    if abono:
+        return jsonify({
+            'id': abono.id,
+            'monto': str(abono.monto),
+            'fecha': abono.fecha.strftime('%Y-%m-%d %H:%M:%S'),
+            'venta_id': abono.venta_id,
+            'cliente_nombre': abono.venta.cliente.nombre,
+            'saldo_pendiente_venta': str(abono.venta.saldo_pendiente)
+        })
+    return jsonify({'error': 'Abono no encontrado'}), 404
+
+@abonos_bp.route('/get_ventas_cliente/<int:cliente_id>')
+@login_required
+@vendedor_cobrador_required
+def get_ventas_cliente(cliente_id):
+    ventas = Venta.query.filter(Venta.cliente_id == cliente_id, Venta.tipo == 'credito', Venta.saldo_pendiente > 0).all()
+    ventas_data = []
+    for venta in ventas:
+        ventas_data.append({
+            'id': venta.id,
+            'fecha': venta.fecha.strftime('%Y-%m-%d'),
+            'saldo_pendiente': str(venta.saldo_pendiente)
+        })
+    return jsonify(ventas_data)

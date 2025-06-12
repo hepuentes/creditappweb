@@ -67,7 +67,7 @@
     <div class="card bg-success text-white h-100">
         <div class="card-body text-center">
             {% if current_user.is_admin() %}
-            <h3 class="mb-0">{{ "${:,}".format(productos|sum(attribute='precio_compra')|default(0)|float) }}</h3>
+            <h3 class="mb-0">{{ "${:,}".format(productos|sum(attribute='precio_compra')|default(0)|int) }}</h3>
             <p class="mb-0">Valor Inventario (Costo)</p>
             {% else %}
             <h3 class="mb-0">{{ productos|length - (productos|selectattr('esta_agotado')|list|length|default(0)) }}</h3>

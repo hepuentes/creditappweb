@@ -18,7 +18,8 @@
             <form method="GET" action="{{ url_for('ventas.index') }}" class="row g-3">
                 <div class="col-md-3">
                     <label class="form-label">Cliente</label>
-                    <input type="text" class="form-control" name="busqueda" placeholder="Buscar por cliente..." value="{{ busqueda|default('') }}">
+                    <input type="text" class="form-control" name="busqueda" placeholder="Buscar por cliente..."
+                        value="{{ busqueda|default('') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Desde</label>
@@ -31,17 +32,28 @@
                 <div class="col-md-2">
                     <label class="form-label">Tipo</label>
                     <select class="form-select" name="tipo">
-                        <option value="" {% if tipo|default('') == '' %}selected{% endif %}>Todos</option>
-                        <option value="contado" {% if tipo|default('') == 'contado' %}selected{% endif %}>Contado</option>
-                        <option value="credito" {% if tipo|default('') == 'credito' %}selected{% endif %}>Crédito</option>
+                        <option value="" {% if tipo|default('')=='' %}selected{% endif %}>Todos</option>
+                        <option value="contado" {% if tipo|default('')=='contado' %}selected{% endif %}>Contado</option>
+                        <option value="credito" {% if tipo|default('')=='credito' %}selected{% endif %}>Crédito</option>
                     </select>
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Estado</label>
                     <select class="form-select" name="estado">
-                        <option value="" {% if estado|default('') == '' %}selected{% endif %}>Todos</option>
-                        <option value="pagado" {% if estado|default('') == 'pagado' %}selected{% endif %}>Pagado</option>
-                        <option value="pendiente" {% if estado|default('') == 'pendiente' %}selected{% endif %}>Pendiente</option>
+                        <option value="" {% if estado|default('')=='' %}selected{% endif %}>Todos</option>
+                        <option value="pagado" {% if estado|default('')=='pagado' %}selected{% endif %}>Pagado</option>
+                        <option value="pendiente" {% if estado|default('')=='pendiente' %}selected{% endif %}>Pendiente
+                        </option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="transferida" class="form-label">Transferencia:</label>
+                    <select class="form-select" id="transferida" name="transferida">
+                        <option value="">Todas</option>
+                        <option value="0" {% if request.args.get('transferida')=='0' %}selected{% endif %}>Originales
+                        </option>
+                        <option value="1" {% if request.args.get('transferida')=='1' %}selected{% endif %}>Transferidas
+                        </option>
                     </select>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">
@@ -82,11 +94,24 @@
         <div class="col-md-3">
             <div class="card bg-info text-white h-100">
                 <div class="card-body text-center">
-                    <h3 class="mb-0">{{ "${:,}".format(ventas|selectattr('tipo', 'equalto', 'credito')|sum(attribute='saldo_pendiente')|default(0)|float) }}</h3>
+                    <h3 class="mb-0">{{ "${:,}".format(ventas|selectattr('tipo', 'equalto',
+                        'credito')|sum(attribute='saldo_pendiente')|default(0)|float) }}</h3>
                     <p class="mb-0">Saldo Pendiente</p>
                 </div>
             </div>
         </div>
+        {% if current_user.is_admin() %}
+        <div class="col-md-3">
+            <div class="card bg-info text-white h-100">
+                <div class="card-body text-center">
+                    {% set ventas_transferidas = ventas | selectattr('transferida', 'true') | list | length %}
+                    <h3 class="mb-0">{{ ventas_transferidas }}</h3>
+                    <p class="mb-0">Transferidas</p>
+                    <small>En esta página</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Listado de ventas -->
@@ -97,74 +122,130 @@
         <div class="card-body p-0">
             <div class="table-responsive">
                 <table class="table table-hover mb-0">
-                    <thead class="table-light">
+                    <thead class="table-dark">
                         <tr>
-                            <th>ID</th>
                             <th>Fecha</th>
                             <th>Cliente</th>
-                            <th>Vendedor</th>
-                            <th>Tipo</th>
+                            <th>Gestor</th>
                             <th>Total</th>
-                            <th>Saldo Pendiente</th>
+                            <th>Tipo</th>
                             <th>Estado</th>
+                            <th>Saldo</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% if ventas %}
-                            {% for venta in ventas %}
-                            <tr>
-                                <td>{{ venta.id }}</td>
-                                <td>{{ venta.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                                <td>
-                                    <a href="{{ url_for('clientes.detalle', id=venta.cliente_id) }}">
-                                        {{ venta.cliente.nombre }}
-                                    </a>
-                                </td>
-                                <td>{{ venta.vendedor.nombre }}</td>
-                                <td>
-                                    {% if venta.tipo == 'contado' %}
-                                    <span class="badge bg-success">Contado</span>
-                                    {% else %}
-                                    <span class="badge bg-warning text-dark">Crédito</span>
-                                    {% endif %}
-                                </td>
-                                <td>{{ "${:,}".format(venta.total|default(0)) }}</td>
-                                <td>
-                                    {% if venta.tipo == 'credito' %}
-                                    {{ "${:,}".format(venta.saldo_pendiente|default(0)) }}
-                                    {% else %}
-                                    -
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    {% if venta.estado == 'pagado' %}
-                                    <span class="badge bg-success">Pagado</span>
-                                    {% else %}
-                                    <span class="badge bg-danger">Pendiente</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <div class="btn-group">
-                                        <a href="{{ url_for('ventas.detalle', id=venta.id) }}" class="btn btn-sm btn-info" data-bs-toggle="tooltip" title="Ver Detalle">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a href="{{ url_for('ventas.pdf', id=venta.id) }}" class="btn btn-sm btn-secondary" data-bs-toggle="tooltip" title="Ver PDF" target="_blank">
-                                            <i class="fas fa-file-pdf"></i>
-                                        </a>
-                                        {% if venta.tipo == 'credito' and venta.saldo_pendiente > 0 %}
-                                        <a href="{{ url_for('abonos.crear', venta_id=venta.id) }}" class="btn btn-sm btn-success" data-bs-toggle="tooltip" title="Registrar Abono">
-                                            <i class="fas fa-money-bill-wave"></i>
-                                        </a>
-                                        {% endif %}
+                        {% for venta in ventas %}
+                        <tr>
+                            <td>{{ venta.fecha.strftime('%d/%m/%Y') }}</td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', id=venta.cliente.id) }}"
+                                    class="text-decoration-none">
+                                    {{ venta.cliente.nombre }}
+                                </a>
+                            </td>
+                            <td>
+                                <div>
+                                    {% if venta.transferida %}
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-success me-2">{{ venta.usuario_actual.nombre }}</span>
+                                        <span class="badge bg-warning text-dark">
+                                            <i class="fas fa-exchange-alt"></i>
+                                        </span>
                                     </div>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                                    <small class="text-muted">
+                                        Original: {{ venta.vendedor_original.nombre }}
+                                    </small>
+                                    {% else %}
+                                    <span class="badge bg-primary">{{ venta.vendedor.nombre }}</span>
+                                    <small class="text-muted d-block">{{ venta.vendedor.rol|title }}</small>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td>${{ "{:,.0f}".format(venta.total) }}</td>
+                            <td>
+                                {% if venta.tipo == 'credito' %}
+                                <span class="badge bg-warning text-dark">Crédito</span>
+                                {% else %}
+                                <span class="badge bg-success">Contado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if venta.estado == 'pagado' %}
+                                <span class="badge bg-success">Pagado</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if venta.tipo == 'credito' %}
+                                {% if venta.saldo_pendiente > 0 %}
+                                <span class="text-danger fw-bold">${{ "{:,.0f}".format(venta.saldo_pendiente) }}</span>
+                                {% else %}
+                                <span class="text-success">$0</span>
+                                {% endif %}
+                                {% else %}
+                                <span class="text-muted">N/A</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group" role="group">
+                                    <a href="{{ url_for('ventas.detalle', id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if current_user.is_admin() and venta.tipo == 'credito' and venta.saldo_pendiente
+                                    > 0 %}
+                                    <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-secondary" title="Transferir venta">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if venta.transferida %}
+                                    <a href="{{ url_for('transferencias.historial_venta', venta_id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-info" title="Historial de transferencias">
+                                        <i class="fas fa-history"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% if venta.tipo == 'credito' and venta.saldo_pendiente > 0 %}
+                                    {% set puede_abonar = false %}
+                                    {% if current_user.is_admin() %}
+                                    {% set puede_abonar = true %}
+                                    {% elif current_user.is_vendedor() %}
+                                    {% if not venta.transferida and venta.vendedor_id == current_user.id %}
+                                    {% set puede_abonar = true %}
+                                    {% elif venta.transferida and venta.usuario_actual_id == current_user.id %}
+                                    {% set puede_abonar = true %}
+                                    {% endif %}
+                                    {% elif current_user.is_cobrador() %}
+                                    {% if not venta.transferida or venta.usuario_actual_id == current_user.id %}
+                                    {% set puede_abonar = true %}
+                                    {% endif %}
+                                    {% endif %}
+                                    {% if puede_abonar %}
+                                    <a href="{{ url_for('abonos.crear', venta_id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-success" title="Registrar abono">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                    </a>
+                                    {% endif %}
+                                    {% endif %}
+                                    <a href="{{ url_for('ventas.pdf', id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-danger" title="Descargar PDF">
+                                        <i class="fas fa-file-pdf"></i>
+                                    </a>
+                                    <a href="{{ url_for('ventas.compartir', id=venta.id) }}"
+                                        class="btn btn-sm btn-outline-info" title="Compartir">
+                                        <i class="fas fa-share-alt"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="9" class="text-center py-3">No se encontraron ventas.</td>
-                            </tr>
+                        <tr>
+                            <td colspan="8" class="text-center py-3">No se encontraron ventas.</td>
+                        </tr>
                         {% endif %}
                     </tbody>
                 </table>

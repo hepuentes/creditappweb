@@ -28,17 +28,23 @@ def detalle(id):
     form = ProductoForm(obj=producto)
     return render_template('productos/detalle.html', producto=producto, form=form)
 
-@productos_bp.route('/crear', methods=['GET','POST'])
+@productos_bp.route('/crear', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def crear():
     form = ProductoForm()
     if form.validate_on_submit():
+        # Validación: Verificar si el código ya existe
+        codigo_existente = Producto.query.filter_by(codigo=form.codigo.data).first()
+        if codigo_existente:
+            flash('⚠️ El código del producto ya existe. Usa otro código.', 'warning')
+            return render_template('productos/crear.html', form=form)
+
         nuevo = Producto()
         form.populate_obj(nuevo)
         db.session.add(nuevo)
         db.session.commit()
-        flash('Producto creado', 'success')
+        flash('✅ Producto creado', 'success')
         return redirect(url_for('productos.index'))
     return render_template('productos/crear.html', form=form)
 

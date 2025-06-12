@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+
+{% block title %}Historial de Transferencias - Venta #{{ venta.id }} - CreditApp{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="fas fa-history"></i> Historial de Transferencias - Venta #{{ venta.id }}</h1>
+        <div>
+            <a href="{{ url_for('ventas.detalle', id=venta.id) }}" class="btn btn-info me-2">
+                <i class="fas fa-eye"></i> Ver Venta
+            </a>
+            <a href="{{ url_for('transferencias.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Información de la venta -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información de la Venta</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-borderless table-sm">
+                        <tr>
+                            <td><strong>Cliente:</strong></td>
+                            <td>
+                                <a href="{{ url_for('clientes.detalle', id=venta.cliente.id) }}" class="text-decoration-none">
+                                    {{ venta.cliente.nombre }}
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Vendedor Original:</strong></td>
+                            <td>
+                                {% if venta.transferida %}
+                                    <span class="badge bg-secondary">{{ venta.vendedor_original.nombre }}</span>
+                                {% else %}
+                                    <span class="badge bg-primary">{{ venta.vendedor.nombre }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Gestor Actual:</strong></td>
+                            <td>
+                                <span class="badge bg-success">{{ venta.usuario_gestor().nombre }}</span>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Total:</strong></td>
+                            <td><strong>${{ "{:,.0f}".format(venta.total) }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Saldo Pendiente:</strong></td>
+                            <td><strong class="text-danger">${{ "{:,.0f}".format(venta.saldo_pendiente) }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fecha Venta:</strong></td>
+                            <td>{{ venta.fecha.strftime('%d/%m/%Y') }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estado:</strong></td>
+                            <td>
+                                {% if venta.transferida %}
+                                    <span class="badge bg-warning">Transferida</span>
+                                {% else %}
+                                    <span class="badge bg-primary">Original</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Estadísticas de transferencias -->
+            <div class="card mt-3">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="fas fa-chart-bar"></i> Estadísticas</h6>
+                </div>
+                <div class="card-body text-center">
+                    <div class="row">
+                        <div class="col-12 mb-2">
+                            <h4 class="text-primary">{{ transferencias|length }}</h4>
+                            <small>Total Transferencias</small>
+                        </div>
+                    </div>
+                    {% if transferencias %}
+                        <small class="text-muted">
+                            Primera: {{ transferencias[-1].fecha.strftime('%d/%m/%Y') }}<br>
+                            Última: {{ transferencias[0].fecha.strftime('%d/%m/%Y') }}
+                        </small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Historial de transferencias -->
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-list"></i> Historial Detallado</h5>
+                    {% if transferencias %}
+                        <span class="badge bg-light text-dark">{{ transferencias|length }} transferencia(s)</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if transferencias %}
+                        {% for transferencia in transferencias %}
+                            <div class="timeline-item mb-4">
+                                <div class="row">
+                                    <div class="col-md-2 text-center">
+                                        <div class="timeline-date">
+                                            <div class="bg-primary text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                                 style="width: 40px; height: 40px;">
+                                                <i class="fas fa-exchange-alt"></i>
+                                            </div>
+                                            <small class="d-block mt-1 text-muted">
+                                                {{ transferencia.fecha.strftime('%d/%m/%Y') }}<br>
+                                                {{ transferencia.fecha.strftime('%H:%M') }}
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-10">
+                                        <div class="card border-left-primary">
+                                            <div class="card-body">
+                                                <div class="row">
+                                                    <div class="col-md-8">
+                                                        <h6 class="text-primary mb-2">
+                                                            Transferencia #{{ loop.revindex }}
+                                                            {% if loop.first %}
+                                                                <span class="badge bg-success ms-2">Actual</span>
+                                                            {% endif %}
+                                                        </h6>
+                                                        
+                                                        <div class="transfer-flow mb-3">
+                                                            <div class="d-flex align-items-center">
+                                                                <span class="badge bg-secondary me-2">{{ transferencia.usuario_origen.nombre }}</span>
+                                                                <i class="fas fa-arrow-right text-primary mx-2"></i>
+                                                                <span class="badge bg-success">{{ transferencia.usuario_destino.nombre }}</span>
+                                                            </div>
+                                                            <small class="text-muted">
+                                                                {{ transferencia.usuario_origen.rol|title }} → {{ transferencia.usuario_destino.rol|title }}
+                                                            </small>
+                                                        </div>
+
+                                                        {% if transferencia.motivo %}
+                                                            <div class="mb-2">
+                                                                <strong>Motivo:</strong>
+                                                                <p class="mb-0 text-muted">{{ transferencia.motivo }}</p>
+                                                            </div>
+                                                        {% endif %}
+
+                                                        <small class="text-muted">
+                                                            <i class="fas fa-user"></i> Realizada por: <strong>{{ transferencia.realizada_por.nombre }}</strong>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-md-4 text-end">
+                                                        {% if loop.first and not transferencia.motivo.startswith('REVERSIÓN') %}
+                                                            <!-- Solo mostrar botón de revertir para la transferencia más reciente -->
+                                                            <button type="button" class="btn btn-sm btn-outline-warning" 
+                                                                    onclick="confirmarReversion({{ transferencia.id }})"
+                                                                    title="Revertir esta transferencia">
+                                                                <i class="fas fa-undo"></i> Revertir
+                                                            </button>
+                                                        {% endif %}
+                                                        
+                                                        {% if transferencia.motivo.startswith('REVERSIÓN') %}
+                                                            <span class="badge bg-warning">
+                                                                <i class="fas fa-undo"></i> Reversión
+                                                            </span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% if not loop.last %}
+                                <div class="timeline-separator text-center mb-3">
+                                    <i class="fas fa-chevron-down text-muted"></i>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+
+                        <!-- Punto de inicio -->
+                        <div class="timeline-item">
+                            <div class="row">
+                                <div class="col-md-2 text-center">
+                                    <div class="bg-success text-white rounded-circle d-inline-flex align-items-center justify-content-center" 
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-play"></i>
+                                    </div>
+                                    <small class="d-block mt-1 text-muted">
+                                        {{ venta.fecha.strftime('%d/%m/%Y') }}
+                                    </small>
+                                </div>
+                                <div class="col-md-10">
+                                    <div class="card border-left-success">
+                                        <div class="card-body">
+                                            <h6 class="text-success mb-2">
+                                                <i class="fas fa-flag"></i> Venta Creada
+                                            </h6>
+                                            <p class="mb-1">
+                                                Venta original creada por: <strong>{{ venta.vendedor.nombre }}</strong>
+                                            </p>
+                                            <small class="text-muted">Esta fue la asignación inicial de la venta.</small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                            <h5>Sin transferencias registradas</h5>
+                            <p class="text-muted">Esta venta aún no ha sido transferida a ningún otro usuario.</p>
+                            <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}" 
+                               class="btn btn-primary">
+                                <i class="fas fa-exchange-alt"></i> Realizar Primera Transferencia
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación para revertir -->
+<div class="modal fade" id="revertirModal" tabindex="-1" aria-labelledby="revertirModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-warning">
+                <h5 class="modal-title" id="revertirModalLabel">
+                    <i class="fas fa-exclamation-triangle"></i> Confirmar Reversión
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>¿Está seguro de revertir esta transferencia?</strong></p>
+                <p>La venta volverá al usuario anterior en el historial.</p>
+                <div class="alert alert-warning">
+                    <strong>Nota:</strong> Solo se puede revertir si no hay abonos posteriores a la transferencia.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="POST" style="display: inline;" id="revertirForm">
+                    <button type="submit" class="btn btn-warning">
+                        <i class="fas fa-undo"></i> Sí, Revertir
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function confirmarReversion(transferenciaId) {
+    const modal = new bootstrap.Modal(document.getElementById('revertirModal'));
+    const form = document.getElementById('revertirForm');
+    form.action = "{{ url_for('transferencias.revertir_transferencia', transferencia_id=0) }}".replace('0', transferenciaId);
+    modal.show();
+}
+
+// Agregar estilos personalizados para la línea de tiempo
+document.addEventListener('DOMContentLoaded', function() {
+    const style = document.createElement('style');
+    style.textContent = `
+        .border-left-primary {
+            border-left: 4px solid #007bff !important;
+        }
+        .border-left-success {
+            border-left: 4px solid #28a745 !important;
+        }
+        .timeline-separator {
+            margin: 1rem 0;
+            opacity: 0.5;
+        }
+    `;
+    document.head.appendChild(style);
+});
+</script>
+{% endblock %}

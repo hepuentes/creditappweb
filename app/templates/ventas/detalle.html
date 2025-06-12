@@ -29,8 +29,43 @@
                                 </a>
                             </p>
                             <p><strong>Cédula:</strong> {{ venta.cliente.cedula }}</p>
-                            <p><strong>Vendedor:</strong> {{ venta.vendedor.nombre }}</p>
+
+                            <p><strong>Vendedor:</strong>
+                                <span class="badge bg-primary">{{ venta.vendedor.nombre }}</span>
+                                <small class="text-muted d-block">{{ venta.vendedor.rol|title }}</small>
+                            </p>
+
+                            <!-- Información de transferencias -->
+                            {% if venta.transferida %}
+                            <p><strong>Estado de Transferencia:</strong>
+                                <span class="badge bg-warning">
+                                    <i class="fas fa-exchange-alt"></i> Transferida
+                                </span>
+                                {% if venta.fecha_transferencia %}
+                                <small class="text-muted d-block">
+                                    Última transferencia: {{ venta.fecha_transferencia.strftime('%d/%m/%Y %H:%M') }}
+                                </small>
+                                {% endif %}
+                            </p>
+
+                            <p><strong>Vendedor Original:</strong>
+                                <span class="badge bg-secondary">{{ venta.vendedor_original.nombre }}</span>
+                                <small class="text-muted d-block">{{ venta.vendedor_original.rol|title }}</small>
+                            </p>
+
+                            <p><strong>Gestor Actual:</strong>
+                                <span class="badge bg-success">{{ venta.usuario_actual.nombre }}</span>
+                                <small class="text-muted d-block">{{ venta.usuario_actual.rol|title }}</small>
+                            </p>
+                            {% else %}
+                            <p><strong>Estado:</strong>
+                                <span class="badge bg-primary">
+                                    <i class="fas fa-user"></i> Asignación Original
+                                </span>
+                            </p>
+                            {% endif %}
                         </div>
+
                         <div class="col-md-6">
                             <p>
                                 <strong>Tipo:</strong>
@@ -48,11 +83,13 @@
                                 <span class="badge bg-danger">Pendiente</span>
                                 {% endif %}
                             </p>
-                            <p><strong>Total:</strong> <span class="fw-bold">{{ "${:,}".format(venta.total) }}</span></p>
+                            <p><strong>Total:</strong> <span class="fw-bold">{{ "${:,}".format(venta.total) }}</span>
+                            </p>
                             {% if venta.tipo == 'credito' %}
-                            <p><strong>Saldo Pendiente:</strong> <span class="fw-bold {% if venta.saldo_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
-                                {{ "${:,}".format(venta.saldo_pendiente) }}
-                            </span></p>
+                            <p><strong>Saldo Pendiente:</strong> <span
+                                    class="fw-bold {% if venta.saldo_pendiente > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ "${:,}".format(venta.saldo_pendiente) }}
+                                </span></p>
                             {% endif %}
                         </div>
                     </div>
@@ -68,7 +105,8 @@
                 <div class="card-body">
                     <div class="row">
                         <div class="col-md-4 mb-2">
-                            <a href="{{ url_for('ventas.pdf', id=venta.id) }}" target="_blank" class="btn btn-primary w-100">
+                            <a href="{{ url_for('ventas.pdf', id=venta.id) }}" target="_blank"
+                                class="btn btn-primary w-100">
                                 <i class="fas fa-file-pdf"></i> Ver PDF
                             </a>
                         </div>
@@ -80,18 +118,41 @@
                         </div>
                         {% endif %}
                         {% if venta.abonos|length == 0 and current_user.is_admin() %}
-<div class="col-md-4 mb-2">
-    <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal" data-bs-target="#eliminarModal">
-        <i class="fas fa-trash"></i> Eliminar
-    </button>
-</div>
-{% endif %}
+                        <div class="col-md-4 mb-2">
+                            <button type="button" class="btn btn-danger w-100" data-bs-toggle="modal"
+                                data-bs-target="#eliminarModal">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
+
+                    <!-- Botones de transferencia si es admin -->
+                    {% if current_user.is_admin() and venta.tipo == 'credito' and venta.saldo_pendiente > 0 %}
+                    <div class="row mt-3">
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}"
+                                class="btn btn-outline-primary w-100" title="Transferir venta">
+                                <i class="fas fa-exchange-alt"></i>
+                                {% if venta.transferida %}Nueva Transferencia{% else %}Transferir{% endif %}
+                            </a>
+                        </div>
+                        {% if venta.transferida %}
+                        <div class="col-md-6 mb-2">
+                            <a href="{{ url_for('transferencias.historial_venta', venta_id=venta.id) }}"
+                                class="btn btn-outline-info w-100" title="Historial de transferencias">
+                                <i class="fas fa-history"></i> Ver Historial
+                            </a>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
 
                     <div class="mt-3">
                         <p class="mb-2">Compartir por WhatsApp:</p>
                         <div class="text-center mt-2">
-                            <a href="{{ url_for('ventas.compartir', id=venta.id) }}" target="_blank" class="btn btn-success">
+                            <a href="{{ url_for('ventas.compartir', id=venta.id) }}" target="_blank"
+                                class="btn btn-success">
                                 <i class="fab fa-whatsapp"></i> Compartir PDF
                             </a>
                         </div>
@@ -100,6 +161,75 @@
             </div>
         </div>
     </div>
+
+    <!-- Sección de transferencias si aplica -->
+    {% if venta.transferida or current_user.is_admin() %}
+    <div class="card mb-4">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                <i class="fas fa-exchange-alt"></i>
+                {% if venta.transferida %}
+                Historial de Transferencias
+                {% else %}
+                Gestión de Transferencias
+                {% endif %}
+            </h6>
+            {% if current_user.is_admin() and venta.tipo == 'credito' and venta.saldo_pendiente > 0 %}
+            <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}"
+                class="btn btn-sm btn-light">
+                <i class="fas fa-exchange-alt"></i>
+                {% if venta.transferida %}Nueva Transferencia{% else %}Transferir{% endif %}
+            </a>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% if venta.transferida %}
+            <!-- Mostrar resumen de transferencias -->
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>Información de Transferencia</h6>
+                    <ul class="list-unstyled">
+                        <li><strong>Vendedor Original:</strong> {{ venta.vendedor_original.nombre }}</li>
+                        <li><strong>Gestor Actual:</strong> {{ venta.usuario_actual.nombre }}</li>
+                        <li><strong>Última Transferencia:</strong> {{ venta.fecha_transferencia.strftime('%d/%m/%Y
+                            %H:%M') }}</li>
+                    </ul>
+                </div>
+                <div class="col-md-6">
+                    <h6>Acciones</h6>
+                    <div class="btn-group" role="group">
+                        <a href="{{ url_for('transferencias.historial_venta', venta_id=venta.id) }}"
+                            class="btn btn-sm btn-outline-info">
+                            <i class="fas fa-history"></i> Ver Historial Completo
+                        </a>
+                        {% if current_user.is_admin() %}
+                        <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}"
+                            class="btn btn-sm btn-outline-primary">
+                            <i class="fas fa-exchange-alt"></i> Nueva Transferencia
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <!-- Venta no transferida -->
+            <div class="row">
+                <div class="col-md-12">
+                    <p class="text-muted mb-2">Esta venta no ha sido transferida. Gestión original por {{
+                        venta.vendedor.nombre }}.</p>
+                    {% if current_user.is_admin() and venta.tipo == 'credito' and venta.saldo_pendiente > 0 %}
+                    <p>Como administrador, puedes transferir esta venta a otro usuario para que gestione el cobro.</p>
+                    <a href="{{ url_for('transferencias.mostrar_transferencia', venta_id=venta.id) }}"
+                        class="btn btn-primary">
+                        <i class="fas fa-exchange-alt"></i> Transferir Venta
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="card mb-4">
         <div class="card-header">
@@ -161,26 +291,32 @@
                     </thead>
                     <tbody>
                         {% if venta.abonos %}
-                            {% for abono_item in venta.abonos|sort(attribute='fecha', reverse=True) %} {# Cambiado 'abono' a 'abono_item' para evitar conflicto con variable de contexto en detalle_abono.html si se incluyera #}
-                            <tr>
-                                <td>{{ abono_item.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
-                                <td>{{ "${:,}".format(abono_item.monto) }}</td>
-                                <td>{{ abono_item.cobrador.nombre }}</td>
-                                <td>{{ abono_item.notas or 'N/A' }}</td>
-                                <td>
-                                    <a href="{{ url_for('abonos.detalle', id=abono_item.id) }}" class="btn btn-sm btn-info">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                    <a href="{{ url_for('abonos.pdf', id=abono_item.id) }}" target="_blank" class="btn btn-sm btn-secondary">
-                                        <i class="fas fa-file-pdf"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            {% endfor %}
+                        {% for abono_item in venta.abonos|sort(attribute='fecha', reverse=True) %}
+                        <tr>
+                            <td>{{ abono_item.fecha.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ "${:,}".format(abono_item.monto) }}</td>
+                            <td>
+                                {{ abono_item.cobrador.nombre }}
+                                {% if venta.transferida and abono_item.fecha >= venta.fecha_transferencia %}
+                                <small class="badge bg-info">Post-transferencia</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ abono_item.notas or 'N/A' }}</td>
+                            <td>
+                                <a href="{{ url_for('abonos.detalle', id=abono_item.id) }}" class="btn btn-sm btn-info">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{{ url_for('abonos.generar_pdf', abono_id=abono_item.id) }}" target="_blank"
+                                    class="btn btn-sm btn-secondary">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
                         {% else %}
-                            <tr>
-                                <td colspan="5" class="text-center py-3">No se han registrado abonos para esta venta.</td>
-                            </tr>
+                        <tr>
+                            <td colspan="5" class="text-center py-3">No se han registrado abonos para esta venta.</td>
+                        </tr>
                         {% endif %}
                     </tbody>
                     <tfoot class="table-light">
@@ -204,6 +340,7 @@
     {% endif %}
 </div>
 
+<!-- Modal de confirmación para eliminar -->
 <div class="modal fade" id="eliminarModal" tabindex="-1" aria-labelledby="eliminarModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -218,7 +355,7 @@
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form action="{{ url_for('ventas.eliminar', id=venta.id) }}" method="POST">
+                <form action="{{ url_for('ventas.eliminar', id=venta.id) }}" method="POST" style="display: inline;">
                     <button type="submit" class="btn btn-danger">Eliminar</button>
                 </form>
             </div>
