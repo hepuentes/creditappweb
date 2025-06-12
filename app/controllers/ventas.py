@@ -18,10 +18,11 @@ ventas_bp = Blueprint('ventas', __name__, url_prefix='/ventas')
 @vendedor_extended_required
 def index():
     # Filtros de búsqueda
-    cliente_nombre = request.args.get('cliente_nombre', '')
+    busqueda = request.args.get('busqueda', '')
     tipo = request.args.get('tipo', '')
     estado = request.args.get('estado', '')
-    
+    transferida_str = request.args.get('transferida')
+
     # Query base
     query = Venta.query.join(Cliente)
     
@@ -30,17 +31,14 @@ def index():
         # Vendedores ven sus ventas originales Y las que tienen asignadas por transferencia
         query = query.filter(
             db.or_(
-                # Ventas originales no transferidas
                 db.and_(
                     Venta.vendedor_id == current_user.id,
                     Venta.transferida == False
                 ),
-                # Ventas transferidas a este usuario
                 db.and_(
                     Venta.transferida == True,
                     Venta.usuario_actual_id == current_user.id
                 ),
-                # Ventas originales transferidas (para ver historial)
                 db.and_(
                     Venta.vendedor_original_id == current_user.id,
                     Venta.transferida == True
@@ -49,24 +47,26 @@ def index():
         )
     
     # Aplicar filtros de búsqueda
-    if cliente_nombre:
-        query = query.filter(Cliente.nombre.ilike(f'%{cliente_nombre}%'))
+    if busqueda:
+        query = query.filter(Cliente.nombre.ilike(f'%{busqueda}%'))
     if tipo:
         query = query.filter(Venta.tipo == tipo)
     if estado:
         query = query.filter(Venta.estado == estado)
-    
+    if transferida_str is not None and transferida_str != '':
+        query = query.filter(Venta.transferida == (transferida_str == '1'))
+
     # Paginación
     page = request.args.get('page', 1, type=int)
     per_page = 20
     
-    ventas = query.order_by(Venta.fecha.desc()).paginate(
+    ventas_paginadas = query.order_by(Venta.fecha.desc()).paginate(
         page=page, per_page=per_page, error_out=False
     )
     
     return render_template('ventas/index.html', 
-                         ventas=ventas, 
-                         cliente_nombre=cliente_nombre,
+                         ventas=ventas_paginadas, 
+                         busqueda=busqueda,
                          tipo=tipo, 
                          estado=estado)
 

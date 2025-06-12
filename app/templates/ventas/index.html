@@ -12,7 +12,6 @@
         </a>
     </div>
 
-    <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-body">
             <form method="GET" action="{{ url_for('ventas.index') }}" class="row g-3">
@@ -23,11 +22,11 @@
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Desde</label>
-                    <input type="date" class="form-control" name="desde" value="{{ desde|default('') }}">
+                    <input type="date" class="form-control" name="desde" value="{{ request.args.get('desde', '') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Hasta</label>
-                    <input type="date" class="form-control" name="hasta" value="{{ hasta|default('') }}">
+                    <input type="date" class="form-control" name="hasta" value="{{ request.args.get('hasta', '') }}">
                 </div>
                 <div class="col-md-2">
                     <label class="form-label">Tipo</label>
@@ -65,12 +64,11 @@
         </div>
     </div>
 
-    <!-- Resumen de Ventas -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card bg-light h-100">
                 <div class="card-body text-center">
-                    <h3 class="mb-0">{{ ventas|length }}</h3>
+                    <h3 class="mb-0">{{ ventas.total }}</h3>
                     <p class="mb-0">Total Ventas</p>
                 </div>
             </div>
@@ -78,43 +76,31 @@
         <div class="col-md-3">
             <div class="card bg-success text-white h-100">
                 <div class="card-body text-center">
-                    <h3 class="mb-0">{{ "${:,}".format(ventas|sum(attribute='total')|default(0)|float) }}</h3>
-                    <p class="mb-0">Monto Total</p>
+                    <h3 class="mb-0">${{ "{:,}".format(ventas.items|sum(attribute='total')|default(0)|float) }}</h3>
+                    <p class="mb-0">Monto Total (Página)</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-warning text-dark h-100">
                 <div class="card-body text-center">
-                    <h3 class="mb-0">{{ ventas|selectattr('tipo', 'equalto', 'credito')|list|length|default(0) }}</h3>
-                    <p class="mb-0">Ventas a Crédito</p>
+                    <h3 class="mb-0">{{ ventas.items|selectattr('tipo', 'equalto', 'credito')|list|length|default(0) }}
+                    </h3>
+                    <p class="mb-0">Ventas a Crédito (Página)</p>
                 </div>
             </div>
         </div>
         <div class="col-md-3">
             <div class="card bg-info text-white h-100">
                 <div class="card-body text-center">
-                    <h3 class="mb-0">{{ "${:,}".format(ventas|selectattr('tipo', 'equalto',
+                    <h3 class="mb-0">${{ "{:,}".format(ventas.items|selectattr('tipo', 'equalto',
                         'credito')|sum(attribute='saldo_pendiente')|default(0)|float) }}</h3>
-                    <p class="mb-0">Saldo Pendiente</p>
+                    <p class="mb-0">Saldo Pendiente (Página)</p>
                 </div>
             </div>
         </div>
-        {% if current_user.is_admin() %}
-        <div class="col-md-3">
-            <div class="card bg-info text-white h-100">
-                <div class="card-body text-center">
-                    {% set ventas_transferidas = ventas | selectattr('transferida', 'true') | list | length %}
-                    <h3 class="mb-0">{{ ventas_transferidas }}</h3>
-                    <p class="mb-0">Transferidas</p>
-                    <small>En esta página</small>
-                </div>
-            </div>
-        </div>
-        {% endif %}
     </div>
 
-    <!-- Listado de ventas -->
     <div class="card">
         <div class="card-header">
             <h5 class="mb-0">Listado de Ventas</h5>
@@ -135,8 +121,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% if ventas %}
-                        {% for venta in ventas %}
+                        {% if ventas.items %}
+                        {% for venta in ventas.items %}
                         <tr>
                             <td>{{ venta.fecha.strftime('%d/%m/%Y') }}</td>
                             <td>
@@ -249,6 +235,30 @@
                         {% endif %}
                     </tbody>
                 </table>
+            </div>
+            <div class="d-flex justify-content-center mt-3">
+                <nav>
+                    <ul class="pagination">
+                        <li class="page-item {% if not ventas.has_prev %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ url_for('ventas.index', page=ventas.prev_num, **request.args) }}">Anterior</a>
+                        </li>
+                        {% for page_num in ventas.iter_pages() %}
+                        {% if page_num %}
+                        <li class="page-item {% if ventas.page == page_num %}active{% endif %}">
+                            <a class="page-link" href="{{ url_for('ventas.index', page=page_num, **request.args) }}">{{
+                                page_num }}</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                        {% endfor %}
+                        <li class="page-item {% if not ventas.has_next %}disabled{% endif %}">
+                            <a class="page-link"
+                                href="{{ url_for('ventas.index', page=ventas.next_num, **request.args) }}">Siguiente</a>
+                        </li>
+                    </ul>
+                </nav>
             </div>
         </div>
     </div>

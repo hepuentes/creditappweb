@@ -59,16 +59,16 @@ def mostrar_transferencia(venta_id):
 def ejecutar_transferencia():
     """Ejecuta la transferencia de la venta"""
     
+    venta_id = request.form.get('venta_id')
+    usuario_destino_id = request.form.get('usuario_destino_id')
+    motivo = request.form.get('motivo', '').strip()
+    
+    # Validaciones básicas
+    if not venta_id or not usuario_destino_id:
+        flash('Datos incompletos para realizar la transferencia', 'danger')
+        return redirect(url_for('transferencias.index'))
+
     try:
-        venta_id = request.form.get('venta_id')
-        usuario_destino_id = request.form.get('usuario_destino_id')
-        motivo = request.form.get('motivo', '').strip()
-        
-        # Validaciones básicas
-        if not venta_id or not usuario_destino_id:
-            flash('Datos incompletos para realizar la transferencia', 'danger')
-            return redirect(url_for('transferencias.index'))
-        
         venta = Venta.query.get_or_404(venta_id)
         usuario_destino = Usuario.query.get_or_404(usuario_destino_id)
         
@@ -82,18 +82,13 @@ def ejecutar_transferencia():
             flash('El usuario destino debe ser un vendedor o cobrador activo', 'danger')
             return redirect(url_for('transferencias.mostrar_transferencia', venta_id=venta_id))
         
-        # Verificar que no sea el mismo usuario
         usuario_actual = venta.usuario_gestor()
         if usuario_destino.id == usuario_actual.id:
             flash('No se puede transferir a la misma persona que gestiona actualmente', 'danger')
             return redirect(url_for('transferencias.mostrar_transferencia', venta_id=venta_id))
         
-        # Iniciar transacción
-        db.session.begin()
-        
         # Configurar campos de transferencia en la venta
         if not venta.transferida:
-            # Primera transferencia
             venta.vendedor_original_id = venta.vendedor_id
             venta.transferida = True
         
@@ -109,13 +104,6 @@ def ejecutar_transferencia():
             motivo=motivo
         )
         db.session.add(transferencia)
-        
-        # Transferir abonos futuros: actualizar el cobrador_id en abonos pendientes
-        # (Los abonos ya realizados mantienen su cobrador original)
-        
-        # Actualizar comisiones futuras
-        # Las comisiones de ventas ya hechas se mantienen para el vendedor original
-        # Las comisiones de abonos futuros irán al nuevo usuario
         
         db.session.commit()
         
@@ -187,59 +175,44 @@ def revertir_transferencia(transferencia_id):
     """Revierte una transferencia (solo la última de una venta)"""
     
     try:
-        transferencia = TransferenciaVenta.query.get_or_404(transferencia_id)
-        venta = transferencia.venta
-        
-        # Verificar que sea la transferencia más reciente de esta venta
-        ultima_transferencia = TransferenciaVenta.query.filter_by(
-            venta_id=venta.id
-        ).order_by(TransferenciaVenta.fecha.desc()).first()
-        
-        if ultima_transferencia.id != transferencia.id:
-            flash('Solo se puede revertir la transferencia más reciente', 'danger')
+        with db.session.begin_nested():
+            transferencia = TransferenciaVenta.query.get_or_404(transferencia_id)
+            venta = transferencia.venta
+            
+            # Verificar que sea la transferencia más reciente de esta venta
+            ultima_transferencia = TransferenciaVenta.query.filter_by(
+                venta_id=venta.id
+            ).order_by(TransferenciaVenta.fecha.desc()).first()
+            
+            if ultima_transferencia.id != transferencia.id:
+                flash('Solo se puede revertir la transferencia más reciente', 'danger')
+                return redirect(url_for('transferencias.historial_venta', venta_id=venta.id))
+            
+            # Verificar si hay abonos posteriores
+            abonos_posteriores = Abono.query.filter(
+                Abono.venta_id == venta.id,
+                Abono.fecha > transferencia.fecha
+            ).count()
+            
+            if abonos_posteriores > 0:
+                flash('No se puede revertir una transferencia si existen abonos posteriores.', 'danger')
+                return redirect(url_for('transferencias.historial_venta', venta_id=venta.id))
+            
+            # Revertir la venta al usuario origen de la transferencia
+            venta.usuario_actual_id = transferencia.usuario_origen_id
+            
+            # Si al revertir, ya no quedan más transferencias, la venta deja de ser "transferida"
+            if TransferenciaVenta.query.filter_by(venta_id=venta.id).count() == 1:
+                venta.transferida = False
+                venta.vendedor_original_id = None
+                venta.usuario_actual_id = None # Vuelve a ser gestionada por el vendedor original
+            
+            # Eliminar la transferencia en lugar de crear una reversión, para mantener la limpieza
+            db.session.delete(transferencia)
+            
+            db.session.commit()
+            flash(f'Transferencia #{transferencia.id} revertida exitosamente.', 'success')
             return redirect(url_for('transferencias.historial_venta', venta_id=venta.id))
-        
-        # Verificar que la venta no tenga abonos nuevos del usuario actual
-        abonos_nuevos = Abono.query.filter(
-            Abono.venta_id == venta.id,
-            Abono.fecha > transferencia.fecha
-        ).count()
-        
-        if abonos_nuevos > 0:
-            flash('No se puede revertir: la venta tiene abonos posteriores a la transferencia', 'danger')
-            return redirect(url_for('transferencias.historial_venta', venta_id=venta.id))
-        
-        db.session.begin()
-        
-        # Revertir la venta al usuario anterior
-        venta.usuario_actual_id = transferencia.usuario_origen_id
-        venta.fecha_transferencia = datetime.utcnow()
-        
-        # Si era la primera transferencia, marcar como no transferida
-        transferencias_anteriores = TransferenciaVenta.query.filter(
-            TransferenciaVenta.venta_id == venta.id,
-            TransferenciaVenta.id != transferencia.id
-        ).count()
-        
-        if transferencias_anteriores == 0:
-            venta.transferida = False
-            venta.vendedor_original_id = None
-            venta.usuario_actual_id = None
-        
-        # Crear registro de reversión
-        reversion = TransferenciaVenta(
-            venta_id=venta.id,
-            usuario_origen_id=transferencia.usuario_destino_id,
-            usuario_destino_id=transferencia.usuario_origen_id,
-            realizada_por_id=current_user.id,
-            motivo=f"REVERSIÓN de transferencia #{transferencia.id}"
-        )
-        db.session.add(reversion)
-        
-        db.session.commit()
-        
-        flash(f'Transferencia revertida exitosamente', 'success')
-        return redirect(url_for('transferencias.historial_venta', venta_id=venta.id))
         
     except Exception as e:
         db.session.rollback()
