@@ -49,7 +49,7 @@ def format_currency(amount):
     return f"{moneda} {formatted_amount}"
 
 
-def calcular_comision(monto, usuario_id, venta_id=None, abono_id=None):
+def calcular_comision(monto_pagado, usuario_id, venta_id=None, abono_id=None):
     """Calcula la comisión sobre un monto para un usuario según su rol"""
     from app.models import Usuario
     
@@ -57,24 +57,27 @@ def calcular_comision(monto, usuario_id, venta_id=None, abono_id=None):
     usuario = Usuario.query.get(usuario_id)
     
     if not config or not usuario:
+        current_app.logger.warning("No se pudo calcular la comisión: Configuración o usuario no encontrado.")
         return 0
 
+    porcentaje_comision = 0
     # Determinar porcentaje según el rol del usuario
     if usuario.rol == 'vendedor':
-        porcentaje = (config.porcentaje_comision_vendedor or 5) / 100
+        porcentaje_comision = (config.porcentaje_comision_vendedor or 0)
     elif usuario.rol == 'cobrador':
-        porcentaje = (config.porcentaje_comision_cobrador or 3) / 100
-    else:
-        porcentaje = (config.porcentaje_comision_vendedor or 5) / 100  # Por defecto
+        porcentaje_comision = (config.porcentaje_comision_cobrador or 0)
+    
+    if porcentaje_comision <= 0:
+        return 0 # No se calculan comisiones si el porcentaje es cero o nulo
 
-    monto_comision = monto * porcentaje
+    monto_comision = monto_pagado * (porcentaje_comision / 100)
     periodo = config.periodo_comision
 
     # Registrar la comisión
     comision = Comision(
         usuario_id=usuario_id,
-        monto_base=monto,
-        porcentaje=config.porcentaje_comision_vendedor if usuario.rol == 'vendedor' else config.porcentaje_comision_cobrador,
+        monto_base=monto_pagado,
+        porcentaje=porcentaje_comision,
         monto_comision=monto_comision,
         periodo=periodo,
         venta_id=venta_id,
@@ -82,8 +85,10 @@ def calcular_comision(monto, usuario_id, venta_id=None, abono_id=None):
     )
 
     db.session.add(comision)
-    db.session.commit()
+    # ELIMINADO: db.session.commit()
+    # La función que llama a esta utilidad se encargará de hacer commit.
 
+    current_app.logger.info(f"Comisión de {monto_comision} preparada para usuario {usuario_id}.")
     return monto_comision
 
 
@@ -231,13 +236,13 @@ def registrar_movimiento_caja(
                 db.session.add(movimiento_destino)
 
         db.session.add(movimiento)
-        db.session.commit()
+        # ELIMINADO: db.session.commit()
 
         logging.info(f"Movimiento registrado exitosamente: ID {movimiento.id}")
         return movimiento
 
     except Exception as e:
-        db.session.rollback()
+        # ELIMINADO: db.session.rollback()
         logging.error(f"Error al registrar movimiento en caja: {e}")
         # No propagamos el error para no interrumpir la venta/abono
         return None

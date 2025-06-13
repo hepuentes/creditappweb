@@ -99,26 +99,31 @@
                     </ul>
                 </li>
 
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-users"></i> Usuarios
+                <li
+                    class="nav-item dropdown {% if request.endpoint and 'usuarios' in request.endpoint %}active{% endif %}">
+                    <a href="#usuariosSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                        <i class="fas fa-users"></i>
+                        Usuarios
                     </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('usuarios.index') }}">
+                    <ul class="collapse list-unstyled" id="usuariosSubmenu">
+                        <li><a href="{{ url_for('usuarios.index') }}">
                                 <i class="fas fa-list"></i> Listado
                             </a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('usuarios.crear') }}">
+                        <li><a href="{{ url_for('usuarios.crear') }}">
                                 <i class="fas fa-user-plus"></i> Nuevo Usuario
                             </a></li>
                     </ul>
                 </li>
 
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
-                        <i class="fas fa-exchange-alt"></i> Transferencias
+                <li
+                    class="nav-item dropdown {% if request.endpoint and 'transferencias' in request.endpoint %}active{% endif %}">
+                    <a href="#transferenciasSubmenu" data-bs-toggle="collapse" aria-expanded="false"
+                        class="dropdown-toggle">
+                        <i class="fas fa-exchange-alt"></i>
+                        Transferencias
                     </a>
-                    <ul class="dropdown-menu">
-                        <li><a class="dropdown-item" href="{{ url_for('transferencias.index') }}">
+                    <ul class="collapse list-unstyled" id="transferenciasSubmenu">
+                        <li><a href="{{ url_for('transferencias.index') }}">
                                 <i class="fas fa-list"></i> Gestionar Transferencias
                             </a></li>
                         <li>
@@ -127,7 +132,7 @@
                         <li>
                             <h6 class="dropdown-header">Acceso Rápido</h6>
                         </li>
-                        <li><a class="dropdown-item" href="{{ url_for('ventas.index') }}?tipo=credito&estado=pendiente">
+                        <li><a href="{{ url_for('ventas.index') }}?tipo=credito&estado=pendiente">
                                 <i class="fas fa-credit-card"></i> Ventas Transferibles
                             </a></li>
                     </ul>
@@ -241,4 +246,5 @@
 
     {% block extra_js %}{% endblock %}
 </body>
+
 </html>
