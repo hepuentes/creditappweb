@@ -24,7 +24,7 @@ def create_app():
 
     # Configuración
     config_name = os.getenv('FLASK_ENV', 'development')
-    app.config.from_object(f"app.config.config['{config_name}']")
+    app.config.from_object("app.config.Config")
 
     # Asegurar que existan los directorios necesarios
     static_dir = app.static_folder
