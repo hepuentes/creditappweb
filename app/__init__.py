@@ -23,7 +23,8 @@ def create_app():
     app = Flask(__name__)
 
     # Configuración
-    app.config.from_object("app.config.Config")
+    config_name = os.getenv('FLASK_ENV', 'development')
+    app.config.from_object(f"app.config.config['{config_name}']")
 
     # Asegurar que existan los directorios necesarios
     static_dir = app.static_folder
