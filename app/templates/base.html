@@ -4,245 +4,798 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}CreditApp{% endblock %}</title>
+    <title>{% block title %}CreditApp - Sistema de Gestión{% endblock %}</title>
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
 
     <!-- Font Awesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
     <!-- Custom CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 
     {% block extra_css %}{% endblock %}
+
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --sidebar-width: 280px;
+            --sidebar-width-collapsed: 60px;
+            --header-height: 60px;
+            --transition-speed: 0.3s;
+            --sidebar-bg: #343a40;
+            --sidebar-text: #adb5bd;
+            --sidebar-hover: #495057;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f8f9fa;
+            overflow-x: hidden;
+        }
+
+        .main-wrapper {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        /* Sidebar Styles */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: var(--sidebar-bg);
+            color: var(--sidebar-text);
+            transition: all var(--transition-speed) ease;
+            z-index: 1040;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar.collapsed {
+            width: var(--sidebar-width-collapsed);
+        }
+
+        /* SIDEBAR HEADER */
+        .sidebar-header {
+            padding: 20px 15px;
+            text-align: left;
+            border-bottom: 1px solid #495057;
+            background: #212529;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: var(--header-height);
+        }
+
+        .sidebar-header h3 {
+            color: #fff;
+            font-size: 1.5rem;
+            font-weight: bold;
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+        }
+
+        .sidebar.collapsed .sidebar-header h3 {
+            font-size: 0;
+            opacity: 0;
+        }
+
+        /* Botón toggle integrado en el header */
+        .sidebar-toggle-btn {
+            background: transparent;
+            border: none;
+            color: #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 8px;
+            border-radius: 4px;
+            transition: all var(--transition-speed) ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 32px;
+            height: 32px;
+        }
+
+        .sidebar-toggle-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: var(--primary-color);
+        }
+
+        .sidebar.collapsed .sidebar-toggle-btn {
+            margin: 0 auto;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .sidebar-nav li {
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .sidebar-nav li a {
+            display: flex;
+            align-items: center;
+            color: var(--sidebar-text);
+            text-decoration: none;
+            padding: 15px 20px;
+            transition: all var(--transition-speed) ease;
+            border-left: 3px solid transparent;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .sidebar ul li a:hover {
+            color: #fff;
+            background: var(--primary-color);
+            border-left-color: #fff;
+        }
+
+        .sidebar ul li.active>a {
+            color: #fff;
+            background: var(--primary-color);
+            border-left-color: #fff;
+        }
+
+        .sidebar ul li a i {
+            margin-right: 12px;
+            width: 20px;
+            text-align: center;
+            transition: all var(--transition-speed) ease;
+        }
+
+        .sidebar ul ul a {
+            padding-left: 45px !important;
+            background: #2c3136;
+            font-size: 0.9em;
+        }
+
+        /* Content Styles */
+        #content {
+            width: calc(100% - var(--sidebar-width));
+            margin-left: var(--sidebar-width);
+            padding: 0;
+            min-height: 100vh;
+            transition: all var(--transition-speed) ease;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Content with collapsed sidebar */
+        .sidebar.collapsed~#content {
+            width: calc(100% - var(--sidebar-width-collapsed));
+            margin-left: var(--sidebar-width-collapsed);
+        }
+
+        /* Navbar Principal */
+        #content>.navbar {
+            padding: 10px 20px;
+            background-color: #fff;
+            border-bottom: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            min-height: var(--header-height);
+            display: flex;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 1030;
+        }
+
+        /* BOTÓN HAMBURGUESA PARA MÓVIL */
+        .mobile-toggle-btn {
+            background: var(--primary-color);
+            border: none;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all var(--transition-speed) ease;
+            display: none;
+            font-size: 1.2rem;
+        }
+
+        .mobile-toggle-btn:hover {
+            background: #0056b3;
+        }
+
+        /* Sidebar collapsed styles */
+        .sidebar.collapsed .sidebar-nav li a span {
+            opacity: 0;
+            display: none;
+        }
+
+        .sidebar.collapsed .sidebar-nav li a i {
+            margin-right: 0;
+        }
+
+        /* Badge styles */
+        .nav-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 10px;
+        }
+
+        .sidebar.collapsed .nav-badge {
+            display: none;
+        }
+
+        /* Overlay para móvil */
+        .sidebar-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1039;
+            display: none;
+        }
+
+        /* RESPONSIVE STYLES */
+        @media (max-width: 767.98px) {
+
+            /* Mostrar botón hamburguesa en móvil */
+            .mobile-toggle-btn {
+                display: block !important;
+            }
+
+            /* En móvil, sidebar oculto por defecto */
+            .sidebar {
+                margin-left: calc(-1 * var(--sidebar-width));
+                transition: margin-left var(--transition-speed) ease;
+                z-index: 1060;
+            }
+
+            /* Cuando sidebar está activo (visible) en móvil */
+            .sidebar.show {
+                margin-left: 0;
+            }
+
+            /* Content ocupa todo el ancho en móvil */
+            #content {
+                width: 100% !important;
+                margin-left: 0 !important;
+            }
+
+            /* Overlay cuando sidebar está abierto en móvil */
+            body.sidebar-open .sidebar-overlay {
+                display: block;
+            }
+
+            /* Ajustes para el header en móvil - MANTENER CREDITAPP VISIBLE */
+            .sidebar-header {
+                justify-content: space-between;
+                padding: 15px;
+            }
+
+            .sidebar-header h3 {
+                display: block !important;
+                font-size: 1.2rem !important;
+                opacity: 1 !important;
+            }
+
+            .sidebar-toggle-btn {
+                margin: 0;
+            }
+        }
+
+        /* Perfil de usuario */
+        .user-profile-dropdown {
+            position: relative;
+        }
+
+        .user-profile-link {
+            text-decoration: none;
+            color: var(--dark-color);
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            transition: all 0.2s ease;
+        }
+
+        .user-profile-link:hover {
+            background-color: rgba(0, 0, 0, 0.05);
+            color: var(--dark-color);
+        }
+
+        .avatar-circle {
+            width: 35px;
+            height: 35px;
+            background-color: var(--primary-color);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .initials {
+            font-size: 1.2rem;
+        }
+
+        .user-info {
+            line-height: 1.2;
+        }
+
+        .user-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .user-role {
+            font-size: 0.8rem;
+            color: var(--secondary-color);
+        }
+
+        /* Main content container */
+        .main-content {
+            flex: 1;
+            padding: 20px;
+        }
+
+        /* Animations */
+        .fade-in {
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Utilidades adicionales */
+        .text-truncate-mobile {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @media (max-width: 576px) {
+            .text-truncate-mobile {
+                max-width: 120px;
+            }
+        }
+
+        /* Fix para dropdown de Bootstrap */
+        .dropdown-menu {
+            z-index: 1050;
+        }
+
+        /* Mejoras de accesibilidad */
+        .sidebar-nav li a:focus,
+        .btn:focus {
+            outline: 2px solid #80bdff;
+            outline-offset: 2px;
+        }
+
+        /* Styles para collapse mejorados */
+        .sidebar-nav .collapse {
+            transition: none;
+        }
+
+        .sidebar-nav .collapse.show {
+            display: block !important;
+        }
+
+        .sidebar-nav .collapse:not(.show) {
+            display: none !important;
+        }
+    </style>
 </head>
 
 <body>
-    <div class="wrapper">
+    <div class="main-wrapper">
         <!-- Sidebar -->
-        <nav id="sidebar" class="sidebar">
+        <nav class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h3>CreditApp</h3>
-                <button type="button" id="sidebarCollapse" class="btn btn-info d-md-none">
-                    <i class="fas fa-align-left"></i>
+                <button type="button" class="sidebar-toggle-btn" id="sidebarToggleIntegrated">
+                    <i class="fas fa-bars"></i>
                 </button>
             </div>
 
-            <ul class="list-unstyled components">
-                <li {% if request.endpoint=='dashboard.index' %}class="active" {% endif %}>
+            <ul class="sidebar-nav">
+                <li class="{% if request.endpoint and 'dashboard' in request.endpoint %}active{% endif %}">
                     <a href="{{ url_for('dashboard.index') }}">
                         <i class="fas fa-tachometer-alt"></i>
-                        Dashboard
-                    </a>
-                </li>
-
-                <li {% if request.endpoint and 'clientes' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('clientes.index') }}">
-                        <i class="fas fa-users"></i>
-                        Clientes
+                        <span>Dashboard</span>
                     </a>
                 </li>
 
                 {% if current_user.is_vendedor() or current_user.is_admin() %}
-                <li {% if request.endpoint and 'productos' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('productos.index') }}">
-                        <i class="fas fa-box"></i>
-                        Inventario
-                    </a>
-                </li>
-
-                <li {% if request.endpoint and 'ventas' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('ventas.index') }}">
-                        <i class="fas fa-shopping-cart"></i>
-                        Ventas
-                    </a>
-                </li>
-                {% endif %}
-
-                <li {% if request.endpoint and 'creditos' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('creditos.index') }}">
-                        <i class="fas fa-credit-card"></i>
-                        Créditos
-                    </a>
-                </li>
-
-                {% if current_user.is_cobrador() or current_user.is_admin() %}
-                <li {% if request.endpoint and 'abonos' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('abonos.index') }}">
-                        <i class="fas fa-money-bill-wave"></i>
-                        Abonos
+                <li class="{% if request.endpoint and 'clientes' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('clientes.index') }}">
+                        <i class="fas fa-users"></i>
+                        <span>Clientes</span>
                     </a>
                 </li>
                 {% endif %}
 
                 {% if current_user.is_admin() %}
-                <li {% if request.endpoint and 'cajas' in request.endpoint %}class="active" {% endif %}>
+                <li class="{% if request.endpoint and 'productos' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('productos.index') }}">
+                        <i class="fas fa-box"></i>
+                        <span>Productos</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if current_user.is_vendedor() or current_user.is_admin() %}
+                <li class="{% if request.endpoint and 'ventas' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('ventas.index') }}">
+                        <i class="fas fa-shopping-cart"></i>
+                        <span>Ventas</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if current_user.is_vendedor() or current_user.is_cobrador() or current_user.is_admin() %}
+                <li class="{% if request.endpoint and 'abonos' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('abonos.index') }}">
+                        <i class="fas fa-hand-holding-usd"></i>
+                        <span>Abonos</span>
+                    </a>
+                </li>
+
+                <li class="{% if request.endpoint and 'cobros' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('cobros.gestion') }}">
+                        <i class="fas fa-money-check-alt"></i>
+                        <span>Gestión de Cobros</span>
+                        <span id="cobros-badge" class="badge bg-warning nav-badge" style="display: none;">0</span>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% if current_user.is_admin() %}
+                <li class="{% if request.endpoint and 'cajas' in request.endpoint %}active{% endif %}">
                     <a href="{{ url_for('cajas.index') }}">
                         <i class="fas fa-cash-register"></i>
-                        Cajas
+                        <span>Cajas</span>
                     </a>
                 </li>
 
                 <li
                     class="nav-item dropdown {% if request.endpoint and 'reportes' in request.endpoint %}active{% endif %}">
-                    <a href="#reportesSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
+                    <a href="#reportesSubmenu" class="dropdown-toggle" data-bs-toggle="collapse" aria-expanded="false">
                         <i class="fas fa-chart-bar"></i>
-                        Reportes
+                        <span>Reportes</span>
                     </a>
                     <ul class="collapse list-unstyled" id="reportesSubmenu">
-                        <li><a href="{{ url_for('reportes.ventas') }}">Ventas</a></li>
-                        <li><a href="{{ url_for('reportes.abonos') }}">Abonos</a></li>
-                        <li><a href="{{ url_for('reportes.creditos') }}">Créditos</a></li>
-                        <li><a href="{{ url_for('reportes.egresos') }}">Egresos</a></li>
-                        <li><a href="{{ url_for('reportes.comisiones') }}">Comisiones</a></li>
+                        <li><a href="{{ url_for('reportes.ventas') }}">
+                                <i class="fas fa-shopping-cart"></i> <span>Reporte de Ventas</span>
+                            </a></li>
+                        <li><a href="{{ url_for('reportes.creditos') }}">
+                                <i class="fas fa-credit-card"></i> <span>Reporte de Créditos</span>
+                            </a></li>
+                        <li><a href="{{ url_for('reportes.comisiones') }}">
+                                <i class="fas fa-percentage"></i> <span>Reporte de Comisiones</span>
+                            </a></li>
                     </ul>
                 </li>
 
                 <li
                     class="nav-item dropdown {% if request.endpoint and 'usuarios' in request.endpoint %}active{% endif %}">
-                    <a href="#usuariosSubmenu" data-bs-toggle="collapse" aria-expanded="false" class="dropdown-toggle">
-                        <i class="fas fa-users"></i>
-                        Usuarios
+                    <a href="#usuariosSubmenu" class="dropdown-toggle" data-bs-toggle="collapse" aria-expanded="false">
+                        <i class="fas fa-users-cog"></i>
+                        <span>Usuarios</span>
                     </a>
                     <ul class="collapse list-unstyled" id="usuariosSubmenu">
                         <li><a href="{{ url_for('usuarios.index') }}">
-                                <i class="fas fa-list"></i> Listado
+                                <i class="fas fa-list"></i> <span>Gestionar Usuarios</span>
                             </a></li>
                         <li><a href="{{ url_for('usuarios.crear') }}">
-                                <i class="fas fa-user-plus"></i> Nuevo Usuario
+                                <i class="fas fa-user-plus"></i> <span>Nuevo Usuario</span>
                             </a></li>
                     </ul>
                 </li>
 
                 <li
                     class="nav-item dropdown {% if request.endpoint and 'transferencias' in request.endpoint %}active{% endif %}">
-                    <a href="#transferenciasSubmenu" data-bs-toggle="collapse" aria-expanded="false"
-                        class="dropdown-toggle">
+                    <a href="#transferenciasSubmenu" class="dropdown-toggle" data-bs-toggle="collapse"
+                        aria-expanded="false">
                         <i class="fas fa-exchange-alt"></i>
-                        Transferencias
+                        <span>Transferencias</span>
                     </a>
                     <ul class="collapse list-unstyled" id="transferenciasSubmenu">
                         <li><a href="{{ url_for('transferencias.index') }}">
-                                <i class="fas fa-list"></i> Gestionar Transferencias
+                                <i class="fas fa-list"></i> <span>Gestionar Transferencias</span>
                             </a></li>
-                        <li>
-                            <hr class="dropdown-divider">
-                        </li>
-                        <li>
-                            <h6 class="dropdown-header">Acceso Rápido</h6>
-                        </li>
                         <li><a href="{{ url_for('ventas.index') }}?tipo=credito&estado=pendiente">
-                                <i class="fas fa-credit-card"></i> Ventas Transferibles
+                                <i class="fas fa-credit-card"></i> <span>Ventas Transferibles</span>
                             </a></li>
                     </ul>
                 </li>
 
-                <li {% if request.endpoint and 'config' in request.endpoint %}class="active" {% endif %}>
-                    <a href="{{ url_for('config.editar') }}">
-                        <i class="fas fa-cog"></i>
-                        Configuración
+                <li class="{% if request.endpoint and 'respaldos' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('respaldos.index') }}">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Respaldos</span>
                     </a>
                 </li>
+
+                <li class="{% if request.endpoint and 'config' in request.endpoint %}active{% endif %}">
+                    <a href="{{ url_for('config.editar') }}">
+                        <i class="fas fa-cog"></i>
+                        <span>Configuración</span>
+                    </a>
+                </li>
+
                 {% elif current_user.is_vendedor() or current_user.is_cobrador() %}
-                <li {% if request.endpoint and 'reportes.comisiones' in request.endpoint %}class="active" {% endif %}>
+                <li class="{% if request.endpoint and 'reportes.comisiones' in request.endpoint %}active{% endif %}">
                     <a href="{{ url_for('reportes.comisiones') }}">
                         <i class="fas fa-percentage"></i>
-                        Mis Comisiones
+                        <span>Mis Comisiones</span>
                     </a>
                 </li>
                 {% endif %}
             </ul>
         </nav>
 
+        <!-- Overlay para móvil -->
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
         <!-- Page Content -->
         <div id="content">
-            <!-- Navbar -->
             <nav class="navbar navbar-expand-lg navbar-light bg-light">
                 <div class="container-fluid">
-                    <!-- Botón hamburguesa para móviles -->
-                    <button type="button" id="sidebarCollapseContent" class="btn btn-primary d-md-none">
+                    <!-- Botón hamburguesa para móvil -->
+                    <button class="mobile-toggle-btn" id="mobileToggleBtn">
                         <i class="fas fa-bars"></i>
                     </button>
 
-                    <!-- Botón toggle para desktop -->
-                    <button type="button" id="sidebarCollapseDesktop" class="btn btn-outline-primary d-none d-md-block">
-                        <i class="fas fa-bars"></i>
-                    </button>
+                    <div class="me-auto"></div>
 
-                    <!-- Perfil de usuario mejorado -->
-                    <div class="ms-auto">
-                        <div class="dropdown user-profile-dropdown">
-                            <a href="#" class="dropdown-toggle user-profile-link" id="dropdownUser"
-                                data-bs-toggle="dropdown" aria-expanded="false">
-                                <div class="d-flex align-items-center">
-                                    <div class="avatar-circle">
-                                        <span class="initials">{{ current_user.nombre[0]|upper }}</span>
-                                    </div>
-                                    <div class="user-info ms-2 d-none d-md-block">
-                                        <div class="user-name">{{ current_user.nombre }}</div>
-                                        <div class="user-role">
-                                            {% if current_user.rol == 'administrador' %}
-                                            Administrador
-                                            {% elif current_user.rol == 'vendedor' %}
-                                            Vendedor
-                                            {% elif current_user.rol == 'cobrador' %}
-                                            Cobrador
-                                            {% endif %}
-                                        </div>
-                                    </div>
-                                    <i class="fas fa-chevron-down ms-2"></i>
+                    <!-- Perfil de usuario -->
+                    <div class="user-profile-dropdown">
+                        <div class="dropdown">
+                            <a href="#" class="user-profile-link dropdown-toggle" data-bs-toggle="dropdown"
+                                aria-expanded="false">
+                                <div class="avatar-circle me-2">
+                                    <span class="initials">
+                                        {{ current_user.nombre.split()[0][0] }}{% if current_user.nombre.split()|length
+                                        > 1 %}{{ current_user.nombre.split()[1][0] }}{% endif %}
+                                    </span>
+                                </div>
+                                <div class="user-info">
+                                    <div class="user-name">{{ current_user.nombre }}</div>
+                                    <div class="user-role">{{ current_user.rol.title() }}</div>
                                 </div>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="dropdownUser">
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('usuarios.mi_perfil') }}">
-                                        <i class="fas fa-user me-2"></i> Mi Perfil
-                                    </a>
-                                </li>
-                                <li>
-                                    <hr class="dropdown-divider">
-                                </li>
-                                <li>
-                                    <a class="dropdown-item" href="{{ url_for('auth.logout') }}">
-                                        <i class="fas fa-sign-out-alt me-2"></i> Cerrar Sesión
-                                    </a>
-                                </li>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
+                                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                    </a></li>
                             </ul>
                         </div>
                     </div>
                 </div>
             </nav>
 
-            <!-- Flash Messages -->
-            {% with messages = get_flashed_messages(with_categories=true) %}
-            {% if messages %}
-            <div class="container-fluid mt-3">
-                {% for category, message in messages %}
-                <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
-                    {{ message }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-            {% endwith %}
-
             <!-- Main Content -->
-            <div class="container-fluid mt-3">
+            <main class="main-content">
+                <!-- Mensajes Flash -->
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                <div class="container-fluid mt-3">
+                    {% for category, message in messages %}
+                    <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show"
+                        role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% endwith %}
+
+                <!-- Contenido de la página -->
                 {% block content %}{% endblock %}
-            </div>
+            </main>
         </div>
     </div>
 
-    <!-- Bootstrap JS -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const sidebar = document.getElementById('sidebar');
+            const sidebarToggleIntegrated = document.getElementById('sidebarToggleIntegrated');
+            const mobileToggleBtn = document.getElementById('mobileToggleBtn');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-    <!-- Custom JS -->
-    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+            function toggleSidebarDesktop() {
+                if (window.innerWidth >= 768) {
+                    sidebar.classList.toggle('collapsed');
+                    const isCollapsed = sidebar.classList.contains('collapsed');
+                    localStorage.setItem('sidebarState', isCollapsed ? 'collapsed' : 'expanded');
+                }
+            }
+
+            function toggleSidebarMobile() {
+                if (window.innerWidth < 768) {
+                    const isShowing = sidebar.classList.contains('show');
+
+                    if (isShowing) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.style.display = 'none';
+                        document.body.classList.remove('sidebar-open');
+                    } else {
+                        sidebar.classList.add('show');
+                        sidebarOverlay.style.display = 'block';
+                        document.body.classList.add('sidebar-open');
+                    }
+                }
+            }
+
+            function toggleSidebar() {
+                if (window.innerWidth >= 768) {
+                    toggleSidebarDesktop();
+                } else {
+                    toggleSidebarMobile();
+                }
+            }
+
+            if (sidebarToggleIntegrated) {
+                sidebarToggleIntegrated.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebar();
+                });
+            }
+
+            if (mobileToggleBtn) {
+                mobileToggleBtn.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    toggleSidebarMobile();
+                });
+            }
+
+            if (sidebarOverlay) {
+                sidebarOverlay.addEventListener('click', function () {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.style.display = 'none';
+                    document.body.classList.remove('sidebar-open');
+                });
+            }
+
+            document.addEventListener('click', function (e) {
+                if (window.innerWidth < 768 && sidebar && sidebar.classList.contains('show')) {
+                    if (!sidebar.contains(e.target) &&
+                        !e.target.closest('#sidebarToggleIntegrated') &&
+                        !e.target.closest('#mobileToggleBtn')) {
+                        sidebar.classList.remove('show');
+                        sidebarOverlay.style.display = 'none';
+                        document.body.classList.remove('sidebar-open');
+                    }
+                }
+            });
+
+            const directLinks = sidebar.querySelectorAll('a:not([data-bs-toggle])');
+            directLinks.forEach(link => {
+                link.addEventListener('click', function () {
+                    if (window.innerWidth < 768) {
+                        setTimeout(() => {
+                            sidebar.classList.remove('show');
+                            sidebarOverlay.style.display = 'none';
+                            document.body.classList.remove('sidebar-open');
+                        }, 100);
+                    }
+                });
+            });
+
+            window.addEventListener('resize', () => {
+                if (window.innerWidth >= 768) {
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.style.display = 'none';
+                    document.body.classList.remove('sidebar-open');
+
+                    const savedState = localStorage.getItem('sidebarState');
+                    if (savedState === 'collapsed') {
+                        sidebar.classList.add('collapsed');
+                    } else {
+                        sidebar.classList.remove('collapsed');
+                    }
+                } else {
+                    sidebar.classList.remove('collapsed');
+                }
+            });
+
+            if (window.innerWidth >= 768) {
+                const savedState = localStorage.getItem('sidebarState');
+                if (savedState === 'collapsed') {
+                    sidebar.classList.add('collapsed');
+                }
+            }
+        });
+
+        async function actualizarBadgeCobros() {
+            try {
+                const response = await fetch('/cobros/api/estadisticas');
+                if (response.ok) {
+                    const stats = await response.json();
+                    const badge = document.getElementById('cobros-badge');
+                    if (badge && stats.vencidos > 0) {
+                        badge.textContent = stats.vencidos;
+                        badge.style.display = 'inline';
+                    } else if (badge) {
+                        badge.style.display = 'none';
+                    }
+                }
+            } catch (error) {
+                console.log('Error actualizando badge de cobros:', error);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const cobrosBadge = document.getElementById('cobros-badge');
+            if (cobrosBadge) {
+                actualizarBadgeCobros();
+                setInterval(actualizarBadgeCobros, 300000);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function () {
+            var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+        });
+
+        window.AppUtils = {
+            formatCurrency: function (amount) {
+                return new Intl.NumberFormat('es-CO', {
+                    style: 'currency',
+                    currency: 'COP',
+                    minimumFractionDigits: 0
+                }).format(amount);
+            },
+
+            formatDate: function (date) {
+                return new Intl.DateTimeFormat('es-CO').format(new Date(date));
+            },
+
+            showNotification: function (message, type = 'info') {
+                console.log(`[${type.toUpperCase()}] ${message}`);
+            }
+        };
+
+        window.sidebarInitialized = true;
+    </script>
 
     {% block extra_js %}{% endblock %}
 </body>

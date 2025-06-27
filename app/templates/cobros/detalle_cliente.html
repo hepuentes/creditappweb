@@ -1,0 +1,614 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle de Cliente - Cobros{% endblock %}
+
+{% block extra_css %}
+<style>
+    .cliente-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 30px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+
+    .cliente-info {
+        background: white;
+        border-radius: 10px;
+        padding: 25px;
+        margin-bottom: 25px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+    }
+
+    .info-item {
+        text-align: center;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 8px;
+        border-left: 4px solid #007bff;
+    }
+
+    .info-value {
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: #333;
+        display: block;
+        margin-bottom: 5px;
+    }
+
+    .info-label {
+        font-size: 0.8rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .ventas-container {
+        background: white;
+        border-radius: 10px;
+        overflow: hidden;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .ventas-header {
+        background: #f8f9fa;
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .venta-card {
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s;
+    }
+
+    .venta-card:hover {
+        background-color: #f8f9fa;
+    }
+
+    .venta-card:last-child {
+        border-bottom: none;
+    }
+
+    .venta-header {
+        display: flex;
+        justify-content: between;
+        align-items: center;
+        margin-bottom: 15px;
+    }
+
+    .venta-numero {
+        font-size: 1.1rem;
+        font-weight: bold;
+        color: #333;
+        margin: 0;
+    }
+
+    .estado-badge {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 0.75rem;
+        font-weight: bold;
+        text-transform: uppercase;
+    }
+
+    .estado-vencido {
+        background: #dc3545;
+        color: white;
+    }
+
+    .estado-hoy {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .estado-proximo {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .venta-detalles {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .detalle-item {
+        text-align: center;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .detalle-label {
+        font-size: 0.7rem;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .detalle-value {
+        font-weight: bold;
+        color: #333;
+        font-size: 0.85rem;
+    }
+
+    .acciones-venta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+
+    .btn-accion {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-whatsapp {
+        background: #25d366;
+        color: white;
+    }
+
+    .btn-whatsapp:hover {
+        background: #128c7e;
+        color: white;
+    }
+
+    .btn-abonar {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-abonar:hover {
+        background: #1e7e34;
+        color: white;
+    }
+
+    .abonos-list {
+        margin-top: 15px;
+        padding: 15px;
+        background: #f8f9fa;
+        border-radius: 5px;
+        border-left: 4px solid #28a745;
+    }
+
+    .abonos-list h6 {
+        color: #28a745;
+        margin-bottom: 10px;
+        font-size: 0.9rem;
+    }
+
+    .abono-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 5px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .abono-item:last-child {
+        border-bottom: none;
+    }
+
+    .abono-fecha {
+        font-size: 0.8rem;
+        color: #666;
+    }
+
+    .abono-monto {
+        font-weight: bold;
+        color: #28a745;
+        font-size: 0.8rem;
+    }
+
+    .no-ventas {
+        text-align: center;
+        padding: 50px;
+        color: #666;
+    }
+
+    .no-ventas i {
+        font-size: 3rem;
+        color: #28a745;
+        margin-bottom: 15px;
+    }
+
+    .no-ventas h5 {
+        color: #28a745;
+        margin-bottom: 10px;
+    }
+
+    .loading-spinner {
+        border: 4px solid #f3f3f3;
+        border-radius: 50%;
+        border-top: 4px solid #007bff;
+        width: 20px;
+        height: 20px;
+        animation: spin 1s linear infinite;
+        display: inline-block;
+        margin-right: 8px;
+    }
+
+    .whatsapp-loading {
+        display: none;
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #25d366;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    @media (max-width: 768px) {
+        .cliente-header {
+            padding: 20px;
+        }
+
+        .info-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .venta-detalles {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .acciones-venta {
+            flex-direction: column;
+        }
+
+        .btn-accion {
+            min-width: unset;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header del cliente -->
+    <div class="cliente-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">{{ cliente.nombre }}</h2>
+                <p class="mb-0 opacity-75">Cédula: {{ cliente.cedula }}</p>
+                {% if cliente.telefono %}
+                <p class="mb-0 opacity-75">Teléfono: {{ cliente.telefono }}</p>
+                {% endif %}
+            </div>
+            <a href="{{ url_for('cobros.gestion') }}" class="btn btn-light">
+                <i class="fas fa-arrow-left me-1"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Información resumida del cliente -->
+    <div class="cliente-info">
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-value">{{ cliente.ventas|length }}</div>
+                <div class="info-label">Total Ventas</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value text-success">
+                    {% set ventas_pagadas = cliente.ventas|selectattr("estado", "equalto", "pagado")|list|length %}
+                    {{ ventas_pagadas }}
+                </div>
+                <div class="info-label">Ventas Pagadas</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value text-warning">{{ ventas_cliente|length }}</div>
+                <div class="info-label">Créditos Activos</div>
+            </div>
+            <div class="info-item">
+                <div class="info-value text-primary">
+                    {% set saldo_total = ventas_cliente|map(attribute='venta.saldo_pendiente')|sum %}
+                    ${{ "{:,}".format(saldo_total|int) }}
+                </div>
+                <div class="info-label">Saldo Total</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lista de ventas a crédito activas -->
+    <div class="ventas-container">
+        <div class="ventas-header">
+            <h4 class="mb-0">
+                <i class="fas fa-credit-card me-2"></i>
+                Ventas a Crédito Activas
+            </h4>
+        </div>
+
+        {% if ventas_cliente %}
+        {% for venta_info in ventas_cliente %}
+        <div class="venta-card">
+            <div class="venta-header">
+                <h5 class="venta-numero">Venta #{{ venta_info.venta.id }}</h5>
+                {% if venta_info.dias_atraso > 0 %}
+                <span class="estado-badge estado-vencido">{{ venta_info.dias_atraso }} días vencido</span>
+                {% elif venta_info.dias_atraso == 0 %}
+                <span class="estado-badge estado-hoy">Vence hoy</span>
+                {% else %}
+                <span class="estado-badge estado-proximo">{{ venta_info.dias_atraso|abs }} días</span>
+                {% endif %}
+            </div>
+
+            <div class="venta-detalles">
+                <div class="detalle-item">
+                    <div class="detalle-label">Fecha Venta</div>
+                    <div class="detalle-value">{{ venta_info.venta.fecha.strftime('%d/%m/%Y') }}</div>
+                </div>
+                <div class="detalle-item">
+                    <div class="detalle-label">Cuota Actual</div>
+                    <div class="detalle-value">{{ venta_info.cuota_actual }}/{{ venta_info.total_cuotas }}</div>
+                </div>
+                <div class="detalle-item">
+                    <div class="detalle-label">Monto Cuota</div>
+                    <div class="detalle-value">${{ "{:,}".format(venta_info.monto_cuota|int) }}</div>
+                </div>
+                <div class="detalle-item">
+                    <div class="detalle-label">Saldo Pendiente</div>
+                    <div class="detalle-value">${{ "{:,}".format(venta_info.venta.saldo_pendiente|int) }}</div>
+                </div>
+                <div class="detalle-item">
+                    <div class="detalle-label">Próximo Venc.</div>
+                    <div class="detalle-value">{{ venta_info.fecha_vencimiento.strftime('%d/%m/%Y') if
+                        venta_info.fecha_vencimiento else 'N/A' }}</div>
+                </div>
+            </div>
+
+            <div class="acciones-venta">
+                {% if venta_info.dias_atraso > 0 %}
+                <button class="btn-accion btn-whatsapp" onclick="enviarWhatsApp({{ venta_info.venta.id }}, 'vencido')">
+                    <i class="fab fa-whatsapp me-1"></i> WhatsApp Vencido
+                </button>
+                {% else %}
+                <button class="btn-accion btn-whatsapp" onclick="enviarWhatsApp({{ venta_info.venta.id }}, 'proximo')">
+                    <i class="fab fa-whatsapp me-1"></i> WhatsApp Recordatorio
+                </button>
+                {% endif %}
+                <a href="{{ url_for('abonos.crear', venta_id=venta_info.venta.id) }}" class="btn-accion btn-abonar">
+                    <i class="fas fa-money-bill me-1"></i> Registrar Pago
+                </a>
+            </div>
+
+            <!-- Lista de abonos -->
+            {% if venta_info.abonos %}
+            <div class="abonos-list">
+                <h6><i class="fas fa-history me-1"></i> Últimos Abonos</h6>
+                {% for abono in venta_info.abonos[:3] %}
+                <div class="abono-item">
+                    <span class="abono-fecha">{{ abono.fecha.strftime('%d/%m/%Y') }}</span>
+                    <span class="abono-monto">${{ "{:,}".format(abono.monto|int) }}</span>
+                </div>
+                {% endfor %}
+                {% if venta_info.abonos|length > 3 %}
+                <small class="text-muted">Y {{ venta_info.abonos|length - 3 }} abonos más...</small>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        {% else %}
+        <div class="no-ventas">
+            <i class="fas fa-check-circle"></i>
+            <h5>¡Cliente al día!</h5>
+            <p>Este cliente no tiene ventas a crédito pendientes en este momento.</p>
+        </div>
+        {% endif %}
+
+        <!-- Resumen adicional -->
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Resumen General del Cliente</h6>
+                        <div class="row">
+                            <div class="col-4">
+                                <strong class="text-primary d-block">{{ cliente.ventas|length }}</strong>
+                                <small class="text-muted">Ventas Totales</small>
+                            </div>
+                            <div class="col-4">
+                                <strong class="text-success d-block">
+                                    {% set ventas_pagadas = cliente.ventas|selectattr("estado", "equalto",
+                                    "pagado")|list|length %}
+                                    {{ ventas_pagadas }}
+                                </strong>
+                                <small class="text-muted">Completadas</small>
+                            </div>
+                            <div class="col-4">
+                                <strong class="text-warning d-block">{{ ventas_cliente|length }}</strong>
+                                <small class="text-muted">Activas</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast para notificaciones WhatsApp -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="whatsappToast" class="toast toast-whatsapp" role="alert">
+        <div class="toast-header">
+            <i class="fab fa-whatsapp text-success me-2"></i>
+            <strong class="me-auto">WhatsApp</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <!-- Mensaje dinámico -->
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Estilos adicionales para toast de WhatsApp */
+    .toast-whatsapp {
+        min-width: 350px;
+        border-left: 4px solid #25d366;
+    }
+
+    .toast-whatsapp .toast-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .mensaje-whatsapp {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        white-space: pre-line;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .loading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #25d366;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<!-- Script para WhatsApp -->
+<script>
+    // Función para enviar mensaje por WhatsApp
+    async function enviarWhatsApp(ventaId, tipoCobro) {
+        try {
+            console.log(`Iniciando WhatsApp para venta ${ventaId}, tipo: ${tipoCobro}`);
+
+            // Mostrar loading
+            const toastEl = document.getElementById('whatsappToast');
+            const toastBody = toastEl.querySelector('.toast-body');
+            toastBody.innerHTML = '<div class="loading"><div class="spinner"></div>Generando mensaje...</div>';
+
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+
+            // Obtener URL de WhatsApp
+            const url = `/cobros/whatsapp/${ventaId}/${tipoCobro}`;
+            console.log('Haciendo petición a:', url);
+
+            const response = await fetch(url);
+            console.log('Respuesta recibida:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Datos recibidos:', data);
+
+            if (data.error) {
+                console.error('Error en respuesta:', data.error);
+                toastBody.innerHTML = '<div class="text-danger">Error: ' + data.error + '</div>';
+                return;
+            }
+
+            // Mostrar mensaje completo
+            toastBody.innerHTML = `
+                <div class="mb-2"><strong>Mensaje para ${data.cliente}:</strong></div>
+                <div class="mensaje-whatsapp">${data.mensaje}</div>
+                <div class="d-grid gap-2">
+                    <a href="${data.url}" target="_blank" class="btn btn-success btn-sm">
+                        <i class="fab fa-whatsapp me-1"></i> Abrir WhatsApp
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('${data.mensaje}')">
+                        <i class="fas fa-copy me-1"></i> Copiar Mensaje
+                    </button>
+                </div>
+            `;
+
+            // Abrir WhatsApp automáticamente en dispositivos móviles
+            if (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                console.log('Abriendo WhatsApp automáticamente...');
+                setTimeout(() => {
+                    window.open(data.url, '_blank');
+                }, 1000);
+            }
+
+        } catch (error) {
+            console.error('Error completo:', error);
+            const toastBody = document.getElementById('whatsappToast')?.querySelector('.toast-body');
+            if (toastBody) {
+                toastBody.innerHTML = `<div class="text-danger">Error al generar mensaje: ${error.message}</div>`;
+            } else {
+                alert('Error al generar mensaje de WhatsApp: ' + error.message);
+            }
+        }
+    }
+
+    // Función para copiar mensaje al portapapeles
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function () {
+            // Mostrar confirmación
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Copiado!';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-outline-secondary');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 2000);
+        }).catch(function (err) {
+            console.error('Error al copiar:', err);
+            alert('No se pudo copiar el mensaje');
+        });
+    }
+
+    // Debugging para verificar que el script se carga
+    console.log('Script de WhatsApp en detalle cliente cargado correctamente');
+</script>
+{% endblock %}

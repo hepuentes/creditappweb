@@ -1,5 +1,6 @@
 import os
 import traceback
+import logging
 from flask import Flask, send_from_directory
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import SQLAlchemyError
@@ -17,42 +18,44 @@ migrate = Migrate()
 login_manager = LoginManager()
 bcrypt = Bcrypt()
 
+
 def create_app():
     app = Flask(__name__)
-    
+
     # Configuración
-    app.config.from_object('app.config.Config')
+    app.config.from_object("app.config.Config")
 
     # Asegurar que existan los directorios necesarios
     static_dir = app.static_folder
-    css_dir = os.path.join(static_dir, 'css')
-    js_dir = os.path.join(static_dir, 'js')
-    uploads_dir = os.path.join(static_dir, 'uploads')
-    img_dir = os.path.join(static_dir, 'img')  
-    
-    for directory in [static_dir, css_dir, js_dir, uploads_dir, img_dir]:  
+    css_dir = os.path.join(static_dir, "css")
+    js_dir = os.path.join(static_dir, "js")
+    uploads_dir = os.path.join(static_dir, "uploads")
+    img_dir = os.path.join(static_dir, "img")
+
+    for directory in [static_dir, css_dir, js_dir, uploads_dir, img_dir]:
         if not os.path.exists(directory):
             os.makedirs(directory, exist_ok=True)
-    
+
     # Inicializar extensiones con la app
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
     bcrypt.init_app(app)
-    
+
     # Configurar login_manager
-    login_manager.login_view = 'auth.login'
-    login_manager.login_message = 'Inicie sesión para acceder a esta página'
-    login_manager.login_message_category = 'warning'
+    login_manager.login_view = "auth.login"
+    login_manager.login_message = "Inicie sesión para acceder a esta página"
+    login_manager.login_message_category = "warning"
 
     # Ruta para servir el favicon.ico desde la carpeta static
-    @app.route('/favicon.ico')
+    @app.route("/favicon.ico")
     def favicon():
         return send_from_directory(
-            os.path.join(app.root_path, 'static'),
-            'favicon.ico',
-            mimetype='image/vnd.microsoft.icon')
-    
+            os.path.join(app.root_path, "static"),
+            "favicon.ico",
+            mimetype="image/vnd.microsoft.icon",
+        )
+
     # Importar y registrar los blueprints
     from app.controllers.auth import auth_bp
     from app.controllers.dashboard import dashboard_bp
@@ -67,6 +70,8 @@ def create_app():
     from app.controllers.reportes import reportes_bp
     from app.controllers.public import public_bp
     from app.controllers.transferencias import transferencias_bp
+    from app.cobros import cobros_bp
+    from app.controllers.respaldos import respaldos_bp
 
     app.register_blueprint(auth_bp)
     app.register_blueprint(dashboard_bp)
@@ -81,7 +86,17 @@ def create_app():
     app.register_blueprint(reportes_bp)
     app.register_blueprint(public_bp)
     app.register_blueprint(transferencias_bp)
-    
+    app.register_blueprint(cobros_bp)
+    app.register_blueprint(respaldos_bp)
+
+    # Configurar manejador de errores global
+    @app.errorhandler(Exception)
+    def handle_exception(e):
+        logging.exception(
+            "Error no manejado: %s", e
+        )  # Esto imprime el traceback completo en consola
+        return "Error interno del servidor", 500
+
     # Crear todas las tablas y datos iniciales
     with app.app_context():
         db.create_all()
@@ -89,15 +104,15 @@ def create_app():
             from app.models import Usuario, Configuracion
 
             # Crear usuario administrador por defecto si no existe
-            admin = Usuario.query.filter_by(email='admin@creditapp.com').first()
+            admin = Usuario.query.filter_by(email="admin@creditapp.com").first()
             if not admin:
                 admin = Usuario(
-                    nombre='Administrador',
-                    email='admin@creditapp.com',
-                    rol='administrador',
-                    activo=True
+                    nombre="Administrador",
+                    email="admin@creditapp.com",
+                    rol="administrador",
+                    activo=True,
                 )
-                admin.set_password('admin123')
+                admin.set_password("admin123")
                 db.session.add(admin)
                 db.session.commit()
 
@@ -105,14 +120,14 @@ def create_app():
             config = Configuracion.query.first()
             if not config:
                 config = Configuracion(
-                    nombre_empresa='CreditApp',
-                    direccion='Dirección de la empresa',
-                    telefono='123456789',
-                    logo='logo.png',
+                    nombre_empresa="CreditApp",
+                    direccion="Dirección de la empresa",
+                    telefono="123456789",
+                    logo="logo.png",
                     iva=0,
-                    moneda='$',                    
-                    periodo_comision='mensual',
-                    min_password=6
+                    moneda="$",
+                    periodo_comision="mensual",
+                    min_password=6,
                 )
                 db.session.add(config)
                 db.session.commit()
@@ -121,5 +136,5 @@ def create_app():
             db.session.rollback()
             print(f"⚠️ Error al inicializar la base de datos: {e}")
             traceback.print_exc()
-    
+
     return app

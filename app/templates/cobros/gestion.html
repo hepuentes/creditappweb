@@ -1,0 +1,678 @@
+{% extends "base.html" %}
+
+{% block title %}Gestión de Cobros{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gestion-header {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 25px;
+        border-radius: 10px;
+        margin-bottom: 25px;
+    }
+
+    .tabs-container {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+    }
+
+    .nav-tabs-custom {
+        background: #f8f9fa;
+        border: none;
+        margin: 0;
+    }
+
+    .nav-tabs-custom .nav-link {
+        border: none;
+        border-radius: 0;
+        padding: 15px 20px;
+        color: #666;
+        font-weight: 500;
+        position: relative;
+    }
+
+    .nav-tabs-custom .nav-link.active {
+        background: white;
+        color: #333;
+        border-bottom: 3px solid #007bff;
+    }
+
+    .nav-tabs-custom .nav-link .badge {
+        font-size: 0.75rem;
+        padding: 2px 6px;
+        margin-left: 5px;
+    }
+
+    .tab-content {
+        padding: 0;
+    }
+
+    .resumen-tabs {
+        background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+    }
+
+    .resumen-card {
+        text-align: center;
+        padding: 15px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    }
+
+    .resumen-numero {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #333;
+        display: block;
+    }
+
+    .resumen-monto {
+        color: #28a745;
+    }
+
+    .resumen-label {
+        font-size: 0.8rem;
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .cliente-card {
+        padding: 20px;
+        border-bottom: 1px solid #e9ecef;
+        transition: background-color 0.2s;
+    }
+
+    .cliente-card:hover {
+        background-color: #f8f9fa;
+    }
+
+    .cliente-card:last-child {
+        border-bottom: none;
+    }
+
+    .cliente-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+    }
+
+    .cliente-nombre {
+        margin: 0;
+        color: #333;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+
+    .estado-badge {
+        padding: 5px 12px;
+        border-radius: 20px;
+        font-size: 0.8rem;
+        font-weight: bold;
+    }
+
+    .estado-hoy {
+        background: #ffc107;
+        color: #212529;
+    }
+
+    .estado-vencido {
+        background: #dc3545;
+        color: white;
+    }
+
+    .estado-proximo {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .cliente-info {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin: 15px 0;
+    }
+
+    .info-item {
+        text-align: center;
+        padding: 8px;
+        background: #f8f9fa;
+        border-radius: 5px;
+    }
+
+    .info-label {
+        font-size: 0.75rem;
+        color: #666;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .info-value {
+        font-weight: bold;
+        color: #333;
+    }
+
+    .acciones-container {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-top: 15px;
+    }
+
+    .btn-accion {
+        display: inline-flex;
+        align-items: center;
+        padding: 6px 12px;
+        font-size: 0.8rem;
+        border-radius: 5px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+        border: none;
+        cursor: pointer;
+    }
+
+    .btn-whatsapp {
+        background: #25d366;
+        color: white;
+    }
+
+    .btn-whatsapp:hover {
+        background: #128c7e;
+        color: white;
+    }
+
+    .btn-abonar {
+        background: #28a745;
+        color: white;
+    }
+
+    .btn-abonar:hover {
+        background: #1e7e34;
+        color: white;
+    }
+
+    .btn-detalle {
+        background: #17a2b8;
+        color: white;
+    }
+
+    .btn-detalle:hover {
+        background: #138496;
+        color: white;
+    }
+
+    .lista-vacia {
+        text-align: center;
+        padding: 50px 20px;
+        color: #666;
+    }
+
+    .lista-vacia i {
+        font-size: 3rem;
+        color: #28a745;
+        margin-bottom: 15px;
+    }
+
+    .lista-vacia h5 {
+        color: #28a745;
+        margin-bottom: 10px;
+    }
+
+    /* Responsivo */
+    @media (max-width: 768px) {
+        .gestion-header {
+            padding: 20px 15px;
+            text-align: center;
+        }
+
+        .resumen-tabs {
+            grid-template-columns: 1fr;
+            gap: 10px;
+        }
+
+        .cliente-info {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .acciones-container {
+            flex-direction: column;
+        }
+
+        .btn-accion {
+            justify-content: center;
+            width: 100%;
+        }
+
+        .nav-tabs-custom .nav-link {
+            padding: 12px 10px;
+            font-size: 0.9rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Header de Gestión -->
+    <div class="gestion-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1">
+                    <i class="fas fa-money-check-alt me-2"></i>
+                    Gestión de Cobros
+                </h2>
+                <p class="mb-0 opacity-75">Gestiona los cobros pendientes, vencidos y próximos</p>
+            </div>
+            <button class="btn btn-light" onclick="location.reload()">
+                <i class="fas fa-sync-alt me-1"></i> Actualizar
+            </button>
+        </div>
+    </div>
+
+    <!-- Tabs de Cobros -->
+    <div class="tabs-container">
+        <ul class="nav nav-tabs nav-tabs-custom" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="para-hoy-tab" data-bs-toggle="tab" data-bs-target="#para-hoy"
+                    type="button" role="tab" aria-controls="para-hoy" aria-selected="true">
+                    Para Hoy
+                    <span class="badge bg-warning">{{ resumen.para_hoy.cantidad }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="vencidos-tab" data-bs-toggle="tab" data-bs-target="#vencidos" type="button"
+                    role="tab" aria-controls="vencidos" aria-selected="false">
+                    Vencidos
+                    <span class="badge bg-danger">{{ resumen.vencidos.cantidad }}</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="proximos-tab" data-bs-toggle="tab" data-bs-target="#proximos" type="button"
+                    role="tab" aria-controls="proximos" aria-selected="false">
+                    Próximos
+                    <span class="badge bg-info">{{ resumen.proximos.cantidad }}</span>
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content">
+            <!-- Pestaña Para Hoy -->
+            <div class="tab-pane fade show active" id="para-hoy" role="tabpanel">
+                <!-- Resumen Para Hoy -->
+                <div class="resumen-tabs">
+                    <div class="resumen-card">
+                        <span class="resumen-numero">{{ resumen.para_hoy.cantidad }}</span>
+                        <div class="resumen-label">Clientes</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero resumen-monto">${{ "{:,}".format(resumen.para_hoy.monto_total)
+                            }}</span>
+                        <div class="resumen-label">A Cobrar</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero text-warning">HOY</span>
+                        <div class="resumen-label">Vencimiento</div>
+                    </div>
+                </div>
+
+                <!-- Lista de cobros para hoy -->
+                {% if para_hoy %}
+                {% for cobro in para_hoy %}
+                <div class="cliente-card hoy">
+                    <div class="cliente-header">
+                        <h5 class="cliente-nombre">{{ cobro.cliente.nombre }}</h5>
+                        <span class="estado-badge estado-hoy">VENCE HOY</span>
+                    </div>
+
+                    <div class="cliente-info">
+                        <div class="info-item">
+                            <div class="info-label">Venta</div>
+                            <div class="info-value">#{{ cobro.venta.id }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Cuota</div>
+                            <div class="info-value">{{ cobro.numero_cuota }}/{{ cobro.total_cuotas }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Monto</div>
+                            <div class="info-value">${{ "{:,}".format(cobro.monto_cuota|int) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Saldo Total</div>
+                            <div class="info-value">${{ "{:,}".format(cobro.venta.saldo_pendiente|int) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-whatsapp" onclick="enviarWhatsApp({{ cobro.venta.id }}, 'hoy')">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </button>
+                        <a href="{{ url_for('abonos.crear', venta_id=cobro.venta.id) }}" class="btn-accion btn-abonar">
+                            <i class="fas fa-money-bill me-1"></i> Registrar Pago
+                        </a>
+                        <a href="{{ url_for('clientes.detalle', id=cobro.cliente.id) }}" class="btn-accion btn-detalle">
+                            <i class="fas fa-eye me-1"></i> Ver Detalle
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="lista-vacia">
+                    <i class="fas fa-check-circle"></i>
+                    <h5>¡Perfecto!</h5>
+                    <p>No hay cobros para hoy</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Pestaña Vencidos -->
+            <div class="tab-pane fade" id="vencidos" role="tabpanel">
+                <!-- Resumen Vencidos -->
+                <div class="resumen-tabs">
+                    <div class="resumen-card">
+                        <span class="resumen-numero">{{ resumen.vencidos.cantidad }}</span>
+                        <div class="resumen-label">Clientes</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero resumen-monto">${{ "{:,}".format(resumen.vencidos.monto_total)
+                            }}</span>
+                        <div class="resumen-label">Vencido</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero text-danger">URGENTE</span>
+                        <div class="resumen-label">Prioridad</div>
+                    </div>
+                </div>
+
+                <!-- Lista de cobros vencidos -->
+                {% if vencidos %}
+                {% for cobro in vencidos %}
+                <div class="cliente-card vencido">
+                    <div class="cliente-header">
+                        <h5 class="cliente-nombre">{{ cobro.cliente.nombre }}</h5>
+                        <span class="estado-badge estado-vencido">{{ cobro.dias_diferencia }} DÍAS</span>
+                    </div>
+
+                    <div class="cliente-info">
+                        <div class="info-item">
+                            <div class="info-label">Venta</div>
+                            <div class="info-value">#{{ cobro.venta.id }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Cuota</div>
+                            <div class="info-value">{{ cobro.numero_cuota }}/{{ cobro.total_cuotas }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Monto</div>
+                            <div class="info-value">${{ "{:,}".format(cobro.monto_cuota|int) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Saldo Total</div>
+                            <div class="info-value">${{ "{:,}".format(cobro.venta.saldo_pendiente|int) }}</div>
+                        </div>
+                    </div>
+
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-whatsapp"
+                            onclick="enviarWhatsApp({{ cobro.venta.id }}, 'vencido')">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </button>
+                        <a href="{{ url_for('abonos.crear', venta_id=cobro.venta.id) }}" class="btn-accion btn-abonar">
+                            <i class="fas fa-money-bill me-1"></i> Registrar Pago
+                        </a>
+                        <a href="{{ url_for('clientes.detalle', id=cobro.cliente.id) }}" class="btn-accion btn-detalle">
+                            <i class="fas fa-eye me-1"></i> Ver Detalle
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="lista-vacia">
+                    <i class="fas fa-check-circle"></i>
+                    <h5>¡Muy bien!</h5>
+                    <p>No hay cobros vencidos en este momento</p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Pestaña Próximos -->
+            <div class="tab-pane fade" id="proximos" role="tabpanel">
+                <!-- Resumen Próximos -->
+                <div class="resumen-tabs">
+                    <div class="resumen-card">
+                        <span class="resumen-numero">{{ resumen.proximos.cantidad }}</span>
+                        <div class="resumen-label">Clientes</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero resumen-monto">${{ "{:,}".format(resumen.proximos.monto_total)
+                            }}</span>
+                        <div class="resumen-label">Próxima Semana</div>
+                    </div>
+                    <div class="resumen-card">
+                        <span class="resumen-numero text-info">7 DÍAS</span>
+                        <div class="resumen-label">Planificar</div>
+                    </div>
+                </div>
+
+                <!-- Lista de cobros próximos -->
+                {% if proximos %}
+                {% for cobro in proximos %}
+                <div class="cliente-card proximo">
+                    <div class="cliente-header">
+                        <h5 class="cliente-nombre">{{ cobro.cliente.nombre }}</h5>
+                        <span class="estado-badge estado-proximo">{{ cobro.fecha_vencimiento.strftime('%d/%m') }}</span>
+                    </div>
+
+                    <div class="cliente-info">
+                        <div class="info-item">
+                            <div class="info-label">Venta</div>
+                            <div class="info-value">#{{ cobro.venta.id }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Cuota</div>
+                            <div class="info-value">{{ cobro.numero_cuota }}/{{ cobro.total_cuotas }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Monto</div>
+                            <div class="info-value">${{ "{:,}".format(cobro.monto_cuota|int) }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Días</div>
+                            <div class="info-value">{{ cobro.dias_diferencia|abs }}</div>
+                        </div>
+                    </div>
+
+                    <div class="acciones-container">
+                        <button class="btn-accion btn-whatsapp"
+                            onclick="enviarWhatsApp({{ cobro.venta.id }}, 'proximo')">
+                            <i class="fab fa-whatsapp me-1"></i> WhatsApp
+                        </button>
+                        <a href="{{ url_for('abonos.crear', venta_id=cobro.venta.id) }}" class="btn-accion btn-abonar">
+                            <i class="fas fa-money-bill me-1"></i> Registrar Pago
+                        </a>
+                        <a href="{{ url_for('clientes.detalle', id=cobro.cliente.id) }}" class="btn-accion btn-detalle">
+                            <i class="fas fa-eye me-1"></i> Ver Detalle
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="lista-vacia">
+                    <i class="fas fa-check-circle"></i>
+                    <h5>¡Genial!</h5>
+                    <p>No hay cobros próximos por vencer</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast para notificaciones WhatsApp -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="whatsappToast" class="toast toast-whatsapp" role="alert">
+        <div class="toast-header">
+            <i class="fab fa-whatsapp text-success me-2"></i>
+            <strong class="me-auto">WhatsApp</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            <!-- Mensaje dinámico -->
+        </div>
+    </div>
+</div>
+</div>
+
+<style>
+    /* Estilos para toast de WhatsApp */
+    .toast-whatsapp {
+        min-width: 350px;
+        border-left: 4px solid #25d366;
+    }
+
+    .toast-whatsapp .toast-header {
+        background-color: #f8f9fa;
+        border-bottom: 1px solid #dee2e6;
+    }
+
+    .mensaje-whatsapp {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 0;
+        font-size: 0.9rem;
+        line-height: 1.4;
+        white-space: pre-line;
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .loading {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid #f3f3f3;
+        border-top: 2px solid #25d366;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+</style>
+
+<!-- Script para WhatsApp -->
+<script>
+    // Función para enviar mensaje por WhatsApp
+    async function enviarWhatsApp(ventaId, tipoCobro) {
+        try {
+            console.log(`Iniciando WhatsApp para venta ${ventaId}, tipo: ${tipoCobro}`);
+
+            // Mostrar loading
+            const toastEl = document.getElementById('whatsappToast');
+            const toastBody = toastEl.querySelector('.toast-body');
+            toastBody.innerHTML = '<div class="loading"><div class="spinner"></div>Generando mensaje...</div>';
+
+            const toast = new bootstrap.Toast(toastEl);
+            toast.show();
+
+            // Obtener URL de WhatsApp
+            const url = `/cobros/whatsapp/${ventaId}/${tipoCobro}`;
+            console.log('Haciendo petición a:', url);
+
+            const response = await fetch(url);
+            console.log('Respuesta recibida:', response.status);
+
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+
+            const data = await response.json();
+            console.log('Datos recibidos:', data);
+
+            if (data.error) {
+                console.error('Error en respuesta:', data.error);
+                toastBody.innerHTML = '<div class="text-danger">Error: ' + data.error + '</div>';
+                return;
+            }
+
+            // Mostrar mensaje completo
+            toastBody.innerHTML = `
+                <div class="mb-2"><strong>Mensaje para ${data.cliente}:</strong></div>
+                <div class="mensaje-whatsapp">${data.mensaje}</div>
+                <div class="d-grid gap-2">
+                    <a href="${data.url}" target="_blank" class="btn btn-success btn-sm">
+                        <i class="fab fa-whatsapp me-1"></i> Abrir WhatsApp
+                    </a>
+                    <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('${data.mensaje}')">
+                        <i class="fas fa-copy me-1"></i> Copiar Mensaje
+                    </button>
+                </div>
+            `;
+
+            // Abrir WhatsApp automáticamente en dispositivos móviles
+            if (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)) {
+                console.log('Abriendo WhatsApp automáticamente...');
+                setTimeout(() => {
+                    window.open(data.url, '_blank');
+                }, 1000);
+            }
+
+        } catch (error) {
+            console.error('Error completo:', error);
+            const toastBody = document.getElementById('whatsappToast')?.querySelector('.toast-body');
+            if (toastBody) {
+                toastBody.innerHTML = `<div class="text-danger">Error al generar mensaje: ${error.message}</div>`;
+            } else {
+                alert('Error al generar mensaje de WhatsApp: ' + error.message);
+            }
+        }
+    }
+
+    // Función para copiar mensaje al portapapeles
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(function () {
+            // Mostrar confirmación
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check me-1"></i> Copiado!';
+            btn.classList.add('btn-success');
+            btn.classList.remove('btn-outline-secondary');
+
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.classList.remove('btn-success');
+                btn.classList.add('btn-outline-secondary');
+            }, 2000);
+        }).catch(function (err) {
+            console.error('Error al copiar:', err);
+            alert('No se pudo copiar el mensaje');
+        });
+    }
+
+    // Debugging para verificar que el script se carga
+    console.log('Script de WhatsApp cargado correctamente');
+</script>
+{% endblock %}

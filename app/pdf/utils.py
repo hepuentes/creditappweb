@@ -3,138 +3,154 @@ import os
 from datetime import datetime
 from app.models import Configuracion
 
+
 class CreditAppPDF(FPDF):
     """Clase base para todos los PDFs de CreditApp con estilo unificado"""
-    
-    def __init__(self, orientation='P', unit='mm', format='A4'):
+
+    def __init__(self, orientation="P", unit="mm", format="A4"):
         super().__init__(orientation, unit, format)
         self.set_auto_page_break(True, margin=15)
-        self.add_font('Roboto', '', os.path.join(os.path.dirname(__file__), 'fonts', 'Roboto-Regular.ttf'), uni=True)
-        self.add_font('Roboto', 'B', os.path.join(os.path.dirname(__file__), 'fonts', 'Roboto-Bold.ttf'), uni=True)
-        self.add_font('Roboto', 'I', os.path.join(os.path.dirname(__file__), 'fonts', 'Roboto-Italic.ttf'), uni=True)
-        
-        # Obtener configuración de la empresa
+        self.add_font(
+            "Roboto",
+            "",
+            os.path.join(os.path.dirname(__file__), "fonts", "Roboto-Regular.ttf"),
+            uni=True,
+        )
+        self.add_font(
+            "Roboto",
+            "B",
+            os.path.join(os.path.dirname(__file__), "fonts", "Roboto-Bold.ttf"),
+            uni=True,
+        )
+        self.add_font(
+            "Roboto",
+            "I",
+            os.path.join(os.path.dirname(__file__), "fonts", "Roboto-Italic.ttf"),
+            uni=True,
+        )
+
         try:
             self.config = Configuracion.query.first()
         except:
-            # Si hay error, usar valores por defecto
             self.config = None
-    
+
     def header(self):
-        # Logo
-        if self.config and self.config.logo and os.path.exists(os.path.join('app', 'static', 'uploads', self.config.logo)):
-            logo_path = os.path.join('app', 'static', 'uploads', self.config.logo)
-            self.image(logo_path, 10, 8, 30)
-            start_x = 45
-        else:
-            # Si no hay logo, usar solo texto
-            start_x = 10
-        
-        # Nombre de la empresa y dirección
-        self.set_font('Roboto', 'B', 16)
-        self.set_text_color(0, 51, 102)  # Azul corporativo
-        
-        if self.config:
-            self.cell(0, 10, self.config.nombre_empresa, 0, 1, 'R')
-        else:
-            self.cell(0, 10, 'CreditApp', 0, 1, 'R')
-        
-        # Información de contacto
-        self.set_font('Roboto', '', 9)
-        self.set_text_color(100, 100, 100)  # Gris oscuro
-        
-        if self.config:
-            if self.config.direccion:
-                self.cell(0, 5, self.config.direccion, 0, 1, 'R')
-            if self.config.telefono:
-                self.cell(0, 5, f"Tel: {self.config.telefono}", 0, 1, 'R')
-        
-        # Línea horizontal
+        text_y = 10
+
+        # Texto "CreditApp" como logo
+        self.set_xy(10, text_y)
+        self.set_font("Roboto", "B", 16)
+        self.set_text_color(30, 100, 200)
+        self.cell(self.get_string_width("Credit"), 8, "Credit", 0, 0, "L")
+        self.set_text_color(50, 180, 90)
+        self.cell(self.get_string_width("App"), 8, "App", 0, 0, "L")
+
+        # Info contacto alineada a la derecha
+        self.set_text_color(100, 100, 100)
+        self.set_font("Roboto", "", 9)
+        direccion = (
+            self.config.direccion if self.config and self.config.direccion else ""
+        )
+        telefono = self.config.telefono if self.config and self.config.telefono else ""
+        contacto = ""
+        if direccion and telefono:
+            contacto = f"{direccion}   |   Tel: {telefono}"
+        elif direccion:
+            contacto = direccion
+        elif telefono:
+            contacto = f"Tel: {telefono}"
+        self.set_xy(45, text_y + 2)
+        self.cell(0, 6, contacto, 0, 1, "R")
+
+        # Línea horizontal debajo del logo/texto e info contacto
         self.set_draw_color(0, 51, 102)
-        self.line(10, self.get_y() + 2, 200, self.get_y() + 2)
-        self.ln(10)
-    
+        self.set_y(text_y + 12)
+        self.line(10, self.get_y(), 200, self.get_y())
+        self.ln(3)
+
     def footer(self):
-        # Posicionarse a 1.5 cm del final
         self.set_y(-15)
-        # Línea horizontal
         self.set_draw_color(0, 51, 102)
         self.line(10, self.get_y() - 2, 200, self.get_y() - 2)
-        # Fecha y número de página
-        self.set_font('Roboto', 'I', 8)
-        self.set_text_color(128, 128, 128)
-        self.cell(0, 10, f'Generado: {datetime.now().strftime("%d/%m/%Y %H:%M")}', 0, 0, 'L')
-        self.cell(0, 10, f'Página {self.page_no()}/{{nb}}', 0, 0, 'R')
-    
+        self.set_font("Roboto", "I", 8)
+        self.set_text_color(100, 100, 100)
+        self.set_x(10)
+        self.cell(
+            0,
+            6,
+            "Este documento es un comprobante de venta por el sistema CreditApp. Para validar este documento, comuníquese con nosotros.",
+            0,
+            0,
+            "L",
+        )
+
     def titulo(self, texto, bg_color=(0, 51, 102), text_color=(255, 255, 255)):
         self.set_fill_color(*bg_color)
         self.set_text_color(*text_color)
-        self.set_font('Roboto', 'B', 14)
-        self.cell(0, 10, texto, 0, 1, 'C', fill=True)
-        self.ln(5)
-    
+        self.set_font("Roboto", "B", 14)
+        self.cell(0, 8, texto, 0, 1, "C", fill=True)
+        self.ln(3)
+
     def seccion(self, texto):
-        self.set_font('Roboto', 'B', 12)
+        self.set_font("Roboto", "B", 11)
         self.set_text_color(0, 51, 102)
-        self.cell(0, 8, texto, 0, 1)
-        self.ln(2)
-    
+        self.cell(0, 6, texto, 0, 1)
+        self.ln(1)
+
     def campo(self, etiqueta, valor, ancho_etiqueta=40):
-        self.set_font('Roboto', 'B', 10)
+        self.set_font("Roboto", "B", 10)
         self.set_text_color(80, 80, 80)
-        self.cell(ancho_etiqueta, 8, etiqueta + ':', 0)
-        
-        self.set_font('Roboto', '', 10)
+        self.cell(ancho_etiqueta, 6, etiqueta + ":", 0)
+
+        self.set_font("Roboto", "", 10)
         self.set_text_color(0, 0, 0)
-        self.cell(0, 8, str(valor), 0, 1)
-    
+        self.cell(0, 6, str(valor), 0, 1)
+
     def tabla_inicio(self, headers, col_widths=None):
         if col_widths is None:
-            # Calcular anchos iguales
             col_widths = [190 / len(headers)] * len(headers)
-        
-        # Fondo del encabezado
+
         self.set_fill_color(240, 240, 240)
         self.set_text_color(0, 0, 0)
-        self.set_font('Roboto', 'B', 10)
+        self.set_font("Roboto", "B", 10)
         self.set_draw_color(200, 200, 200)
-        
-        # Imprimir encabezados
+
         for i, header in enumerate(headers):
-            self.cell(col_widths[i], 7, header, 1, 0, 'C', fill=True)
+            self.cell(col_widths[i], 8, header, 1, 0, "C", fill=True)
         self.ln()
-        
-        # Configurar para filas de datos
-        self.set_font('Roboto', '', 10)
+
+        self.set_font("Roboto", "", 10)
         self.set_fill_color(255, 255, 255)
-        
+
         return col_widths
-    
-    def tabla_fila(self, data, col_widths, fill=False):
+
+    def tabla_fila(self, data, col_widths, fill=False, centrar_columnas=None):
         if fill:
             self.set_fill_color(245, 245, 245)
         else:
             self.set_fill_color(255, 255, 255)
-        
+
+        if centrar_columnas is None:
+            centrar_columnas = []
+
         for i, item in enumerate(data):
-            self.cell(col_widths[i], 6, str(item), 1, 0, 'L', fill)
+            align = "C" if i in centrar_columnas else "L"
+            self.cell(col_widths[i], 7, str(item), 1, 0, align, fill)
         self.ln()
-    
+
     def tabla_total(self, texto, valor, col_widths):
-        ancho_total = sum(col_widths)
-        ancho_texto = ancho_total * 0.8
-        ancho_valor = ancho_total * 0.2
-        
-        self.set_font('Roboto', 'B', 10)
+        self.set_font("Roboto", "B", 10)
         self.set_fill_color(230, 230, 230)
-        self.cell(ancho_texto, 7, texto, 1, 0, 'R', fill=True)
-        self.cell(ancho_valor, 7, valor, 1, 1, 'R', fill=True)
+
+        ancho_texto = sum(col_widths[:-1])
+        ancho_valor = col_widths[-1]
+
+        self.cell(ancho_texto, 8, texto, 1, 0, "C", fill=True)
+        self.cell(ancho_valor, 8, valor, 1, 1, "C", fill=True)
 
     def formato_moneda(self, valor):
-        """Formatea un valor numérico como moneda"""
         if self.config and self.config.moneda:
             moneda = self.config.moneda
         else:
             moneda = "$"
-        
         return f"{moneda} {valor:,.0f}"

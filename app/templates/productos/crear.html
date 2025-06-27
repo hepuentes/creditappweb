@@ -1,140 +1,280 @@
 {% extends "base.html" %}
 
-{% block title %}{{ titulo|default('Nuevo Producto') }} - CreditApp{% endblock %}
+{% block title %}
+Crear Producto
+{% endblock %}}
+
+{% block extra_css %}
+<style>
+    .precios-diferenciados-section {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        margin-top: 1rem;
+        transition: all 0.3s ease;
+    }
+
+    .precios-diferenciados-section.active {
+        background-color: #e3f2fd;
+        border-color: #2196f3;
+    }
+
+    .precio-preview {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.25rem;
+        padding: 0.75rem;
+        margin-top: 0.5rem;
+        font-weight: 500;
+    }
+
+    .precio-preview.individual {
+        border-left: 4px solid #dc3545;
+    }
+
+    .precio-preview.kit {
+        border-left: 4px solid #28a745;
+    }
+
+    .help-text {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Crear Producto</h1>
+        <div>
+            <a href="{{ url_for('productos.index') }}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
     <div class="row">
-        <div class="col-md-8 mx-auto">
+        <div class="col-lg-8 mx-auto">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">{{ titulo|default('Nuevo Producto') }}</h5>
+                    <h5 class="mb-0">Información del Producto</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST" novalidate>
+                    <form method="POST" id="productoForm">
                         {{ form.hidden_tag() }}
 
+                        <!-- Información básica -->
                         <div class="row mb-3">
-                            <div class="col-md-4">
-                                {{ form.codigo.label(class="form-label") }}
-                                {% if form.codigo.errors %}
-                                    {{ form.codigo(class="form-control is-invalid") }}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.codigo.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
-                                {% else %}
-                                    {{ form.codigo(class="form-control") }}
-                                {% endif %}
-                            </div>
-
-                            <div class="col-md-8">
+                            <div class="col-md-6">
                                 {{ form.nombre.label(class="form-label") }}
                                 {% if form.nombre.errors %}
-                                    {{ form.nombre(class="form-control is-invalid") }}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.nombre.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
+                                {{ form.nombre(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.nombre.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
                                 {% else %}
-                                    {{ form.nombre(class="form-control") }}
+                                {{ form.nombre(class="form-control") }}
+                                {% endif %}
+                            </div>
+
+                            <div class="col-md-6">
+                                {{ form.codigo.label(class="form-label") }}
+                                {% if form.codigo.errors %}
+                                {{ form.codigo(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.codigo.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                {{ form.codigo(class="form-control") }}
                                 {% endif %}
                             </div>
                         </div>
 
-                        <div class="mb-3">
-                            {{ form.descripcion.label(class="form-label") }}
-                            {% if form.descripcion.errors %}
-                                {{ form.descripcion(class="form-control is-invalid", rows=3) }}
+                        <div class="row mb-3">
+                            <div class="col-12">
+                                {{ form.descripcion.label(class="form-label") }}
+                                {% if form.descripcion.errors %}
+                                {{ form.descripcion(class="form-control is-invalid") }}
                                 <div class="invalid-feedback">
                                     {% for error in form.descripcion.errors %}
-                                        {{ error }}
+                                    {{ error }}
                                     {% endfor %}
                                 </div>
-                            {% else %}
-                                {{ form.descripcion(class="form-control", rows=3) }}
-                            {% endif %}
+                                {% else %}
+                                {{ form.descripcion(class="form-control") }}
+                                {% endif %}
+                            </div>
                         </div>
 
+                        <!-- Precios básicos -->
                         <div class="row mb-3">
                             <div class="col-md-4">
                                 {{ form.precio_compra.label(class="form-label") }}
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {% if form.precio_compra.errors %}
-                                        {{ form.precio_compra(class="form-control is-invalid numeric-only") }}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.precio_compra.errors %}
-                                                {{ error }}
-                                            {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        {{ form.precio_compra(class="form-control numeric-only") }}
-                                    {% endif %}
+                                {% if form.precio_compra.errors %}
+                                {{ form.precio_compra(class="form-control is-invalid numeric-only") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.precio_compra.errors %}
+                                    {{ error }}
+                                    {% endfor %}
                                 </div>
+                                {% else %}
+                                {{ form.precio_compra(class="form-control numeric-only") }}
+                                {% endif %}
                             </div>
 
                             <div class="col-md-4">
                                 {{ form.precio_venta.label(class="form-label") }}
-                                <div class="input-group">
-                                    <span class="input-group-text">$</span>
-                                    {% if form.precio_venta.errors %}
-                                        {{ form.precio_venta(class="form-control is-invalid numeric-only") }}
-                                        <div class="invalid-feedback">
-                                            {% for error in form.precio_venta.errors %}
-                                                {{ error }}
-                                            {% endfor %}
-                                        </div>
-                                    {% else %}
-                                        {{ form.precio_venta(class="form-control numeric-only") }}
-                                    {% endif %}
+                                {% if form.precio_venta.errors %}
+                                {{ form.precio_venta(class="form-control is-invalid numeric-only") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.precio_venta.errors %}
+                                    {{ error }}
+                                    {% endfor %}
                                 </div>
+                                {% else %}
+                                {{ form.precio_venta(class="form-control numeric-only") }}
+                                {% endif %}
                             </div>
 
                             <div class="col-md-4">
                                 {{ form.unidad.label(class="form-label") }}
                                 {% if form.unidad.errors %}
-                                    {{ form.unidad(class="form-control is-invalid") }}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.unidad.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
+                                {{ form.unidad(class="form-control is-invalid") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.unidad.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
                                 {% else %}
-                                    {{ form.unidad(class="form-control", placeholder="Und., Kg, Lt, etc.") }}
+                                {{ form.unidad(class="form-control", placeholder="Ej: Par, Unidad, Kit") }}
                                 {% endif %}
                             </div>
                         </div>
 
-                        <div class="row mb-3">
+                        <!-- Stock -->
+                        <div class="row mb-4">
                             <div class="col-md-6">
                                 {{ form.stock.label(class="form-label") }}
                                 {% if form.stock.errors %}
-                                    {{ form.stock(class="form-control is-invalid numeric-only") }}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.stock.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
+                                {{ form.stock(class="form-control is-invalid numeric-only") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.stock.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
                                 {% else %}
-                                    {{ form.stock(class="form-control numeric-only") }}
+                                {{ form.stock(class="form-control numeric-only") }}
                                 {% endif %}
                             </div>
 
                             <div class="col-md-6">
                                 {{ form.stock_minimo.label(class="form-label") }}
                                 {% if form.stock_minimo.errors %}
-                                    {{ form.stock_minimo(class="form-control is-invalid numeric-only") }}
-                                    <div class="invalid-feedback">
-                                        {% for error in form.stock_minimo.errors %}
-                                            {{ error }}
-                                        {% endfor %}
-                                    </div>
+                                {{ form.stock_minimo(class="form-control is-invalid numeric-only") }}
+                                <div class="invalid-feedback">
+                                    {% for error in form.stock_minimo.errors %}
+                                    {{ error }}
+                                    {% endfor %}
+                                </div>
                                 {% else %}
-                                    {{ form.stock_minimo(class="form-control numeric-only") }}
+                                {{ form.stock_minimo(class="form-control numeric-only") }}
                                 {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Configuración de precios diferenciados -->
+                        <div class="mb-4">
+                            <div class="form-check mb-3">
+                                {{ form.tiene_precio_individual(class="form-check-input",
+                                id="check_precios_diferenciados") }}
+                                <label class="form-check-label fw-bold" for="check_precios_diferenciados">
+                                    {{ form.tiene_precio_individual.label.text }}
+                                </label>
+                                <div class="help-text">
+                                    Activa esta opción si el producto se vende a diferentes precios según la cantidad
+                                    (ej: individual vs kit)
+                                </div>
+                            </div>
+
+                            <div id="seccion_precios_diferenciados" class="precios-diferenciados-section"
+                                style="display: none;">
+                                <h6 class="mb-3 text-primary">
+                                    <i class="fas fa-tags"></i> Configuración de Precios por Cantidad
+                                </h6>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        {{ form.precio_individual.label(class="form-label") }}
+                                        {% if form.precio_individual.errors %}
+                                        {{ form.precio_individual(class="form-control is-invalid numeric-only") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.precio_individual.errors %}
+                                            {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        {{ form.precio_individual(class="form-control numeric-only") }}
+                                        {% endif %}
+                                        <div class="help-text">
+                                            Precio cuando se vende menos de la cantidad mínima de kit
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        {{ form.cantidad_kit.label(class="form-label") }}
+                                        {% if form.cantidad_kit.errors %}
+                                        {{ form.cantidad_kit(class="form-control is-invalid numeric-only") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.cantidad_kit.errors %}
+                                            {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        {{ form.cantidad_kit(class="form-control numeric-only") }}
+                                        {% endif %}
+                                        <div class="help-text">
+                                            Cantidad mínima para aplicar precio de kit
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        {{ form.precio_kit.label(class="form-label") }}
+                                        {% if form.precio_kit.errors %}
+                                        {{ form.precio_kit(class="form-control is-invalid numeric-only") }}
+                                        <div class="invalid-feedback">
+                                            {% for error in form.precio_kit.errors %}
+                                            {{ error }}
+                                            {% endfor %}
+                                        </div>
+                                        {% else %}
+                                        {{ form.precio_kit(class="form-control numeric-only") }}
+                                        {% endif %}
+                                        <div class="help-text">
+                                            Precio unitario cuando se vende en kit
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Preview de precios -->
+                                <div id="preview_precios" style="display: none;">
+                                    <h6 class="mb-2">Vista previa de precios:</h6>
+                                    <div class="precio-preview individual">
+                                        <strong>Venta individual:</strong> <span id="preview_individual">$0</span>
+                                    </div>
+                                    <div class="precio-preview kit">
+                                        <strong>Venta en kit:</strong> <span id="preview_kit">$0 cada uno (mínimo <span
+                                                id="preview_cantidad">0</span> unidades)</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
 
@@ -152,19 +292,108 @@
 
 {% block extra_js %}
 <script>
-    // Calcular precio de venta automáticamente (30% de margen)
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        // Elementos del formulario
+        const checkPreciosDiferenciados = document.getElementById('check_precios_diferenciados');
+        const seccionPreciosDiferenciados = document.getElementById('seccion_precios_diferenciados');
         const precioCompra = document.getElementById('precio_compra');
         const precioVenta = document.getElementById('precio_venta');
+        const precioIndividual = document.getElementById('precio_individual');
+        const precioKit = document.getElementById('precio_kit');
+        const cantidadKit = document.getElementById('cantidad_kit');
+        const previewPrecios = document.getElementById('preview_precios');
 
-        precioCompra.addEventListener('change', function() {
+        // Mostrar/ocultar sección de precios diferenciados
+        checkPreciosDiferenciados.addEventListener('change', function () {
+            if (this.checked) {
+                seccionPreciosDiferenciados.style.display = 'block';
+                seccionPreciosDiferenciados.classList.add('active');
+
+                // Auto-completar campos si están vacíos
+                if (precioVenta.value && !precioIndividual.value) {
+                    // Precio individual = precio venta + 25%
+                    const ventaValue = parseFloat(precioVenta.value);
+                    precioIndividual.value = Math.round(ventaValue * 1.25);
+                }
+
+                if (precioVenta.value && !precioKit.value) {
+                    // Precio kit = precio venta
+                    precioKit.value = precioVenta.value;
+                }
+
+                actualizarPreview();
+            } else {
+                seccionPreciosDiferenciados.style.display = 'none';
+                seccionPreciosDiferenciados.classList.remove('active');
+                previewPrecios.style.display = 'none';
+            }
+        });
+
+        // Calcular precio de venta automáticamente (30% de margen)
+        precioCompra.addEventListener('change', function () {
             if (precioCompra.value && (!precioVenta.value || precioVenta.value == '0')) {
                 const costo = parseFloat(precioCompra.value);
                 const margen = 0.30; // 30% de margen
-                const venta = costo * (1 + margen);
-                precioVenta.value = venta.toFixed(2);
+                const venta = Math.round(costo * (1 + margen));
+                precioVenta.value = venta;
             }
         });
+
+        // Actualizar preview cuando cambien los valores
+        [precioIndividual, precioKit, cantidadKit].forEach(field => {
+            if (field) {
+                field.addEventListener('input', actualizarPreview);
+            }
+        });
+
+        function actualizarPreview() {
+            if (!checkPreciosDiferenciados.checked) return;
+
+            const individual = parseFloat(precioIndividual.value) || 0;
+            const kit = parseFloat(precioKit.value) || 0;
+            const cantidad = parseInt(cantidadKit.value) || 0;
+
+            if (individual > 0 && kit > 0 && cantidad > 0) {
+                document.getElementById('preview_individual').textContent =
+                    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(individual);
+
+                document.getElementById('preview_kit').textContent =
+                    new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(kit);
+
+                document.getElementById('preview_cantidad').textContent = cantidad;
+
+                previewPrecios.style.display = 'block';
+            } else {
+                previewPrecios.style.display = 'none';
+            }
+        }
+
+        // Validación en tiempo real
+        function validarPreciosDiferenciados() {
+            if (!checkPreciosDiferenciados.checked) return true;
+
+            const individual = parseFloat(precioIndividual.value) || 0;
+            const kit = parseFloat(precioKit.value) || 0;
+
+            if (individual > 0 && kit > 0 && individual <= kit) {
+                alert('El precio individual debe ser mayor que el precio de kit para incentivar la compra en kit.');
+                return false;
+            }
+
+            return true;
+        }
+
+        // Validar antes de enviar el formulario
+        document.getElementById('productoForm').addEventListener('submit', function (e) {
+            if (!validarPreciosDiferenciados()) {
+                e.preventDefault();
+            }
+        });
+
+        // Verificar estado inicial del checkbox
+        if (checkPreciosDiferenciados.checked) {
+            checkPreciosDiferenciados.dispatchEvent(new Event('change'));
+        }
     });
 </script>
 {% endblock %}
